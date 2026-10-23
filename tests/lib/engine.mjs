@@ -22,6 +22,8 @@ const LABOR_EXPORTS = ['LABOR_VERSION', 'LABOR_METHODS', 'DEFAULT_TRADES', 'defa
 
 const REVISION_EXPORTS = ['REVISION_VERSION', 'REV_STATUSES', 'SNAPSHOT_KEYS', 'snapshotOf', 'revisionIntact', 'aggregateLines', 'diffBOQ', 'diffElements', 'diffInputs'];
 
+const STATE_EXPORTS = ['APP_VERSION', 'ENGINE_VERSION', 'SCHEMA_VERSION', 'factorPaths', 'defaultFactorMeta', 'defaultState', 'migrate', 'loadState'];
+
 export function engineSource(file = APP_HTML, block = 'engine') {
   const html = fs.readFileSync(file, 'utf8');
   const m = html.match(new RegExp(`<script id="${block}">([\\s\\S]*?)<\\/script>`));
@@ -36,9 +38,9 @@ export function loadEngine(file = APP_HTML, {auditor = false} = {}) {
   if (auditor) {
     const opt = b => { try { return engineSource(file, b); } catch (e) { return ''; } };   // blocks added in later phases
     const mods = opt('modules'), labor = opt('labor');
-    const revs = opt('revisions');
-    src += '\n' + mods + '\n' + labor + '\n' + engineSource(file, 'auditor') + '\n' + revs;
-    names = EXPORTS.concat(AUDITOR_EXPORTS, mods ? MODULE_EXPORTS : [], labor ? LABOR_EXPORTS : [], revs ? REVISION_EXPORTS : []);
+    const revs = opt('revisions'), state = opt('state');
+    src += '\n' + mods + '\n' + labor + '\n' + engineSource(file, 'auditor') + '\n' + revs + '\n' + state;
+    names = EXPORTS.concat(AUDITOR_EXPORTS, mods ? MODULE_EXPORTS : [], labor ? LABOR_EXPORTS : [], revs ? REVISION_EXPORTS : [], state ? STATE_EXPORTS : []);
   }
   const ctx = vm.createContext({});
   return vm.runInContext(src + `\n;({${names.join(',')}})`, ctx, {filename: path.basename(file) + '#engine'});

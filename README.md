@@ -16,6 +16,9 @@ Open it in Chrome or Edge by double-clicking. It needs no install, no server and
 - **BOQ:** materials plus labor (₱ per unit or % of materials), then OCM, profit, contingency and VAT.
   - Exports to Excel, CSV, or PDF (through Print).
 
+## Shared server (Phase 6)
+To work as a team, deploy the Google Apps Script server: see `DEPLOYMENT.md`. Projects are stored in a Google Sheet and drawings in Drive. Estimators, reviewers and admins sign in with Google accounts. Saves are versioned and checked for conflicts, and every save is confirmed by the server. The standalone file keeps working offline.
+
 ## Phase 3 calculators
 Excavation & backfill, roofing, floor/wall tiles, waterproofing, painting, doors & windows, structural steel, and plumbing and electrical schedules. See `MODULES.md`. Their coefficients start **not set** and must be entered (from Fajardo or the product data sheet) before the quantities that need them reach the BOQ. Specified products are priced inside each element.
 

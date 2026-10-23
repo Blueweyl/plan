@@ -374,3 +374,51 @@ A `<script id="revisions">` block of pure functions provides the snapshot and th
 - Integrity uses a 64-bit FNV hash, which detects edits but is **not** cryptographic. In a single offline file, anyone with the file can rewrite both the snapshot and its hash. Real immutability needs the server-side store in Phase 6.
 - Names come from the local name field. Separating submitter, reviewer and approver needs Phase 6 roles; for now one person can submit and approve.
 - One revision of the sample project takes about 44 KB, so browser storage (about 5 MB) holds roughly 100 revisions. Storage failures are shown, and project files have no such limit.
+
+---
+
+## 10. Status after Phase 6: Google Sheets and multiple estimators (2026-10-23)
+
+**Decisions (defaults applied, since you didn't answer the setup questions):**
+- the app is served by Google Apps Script
+- users sign in with Google accounts: Workspace sessions, or a verified Google sign-in ID token when `CLIENT_ID` is configured
+- the person who runs `setup` is the first Admin
+
+The standalone file still works offline and says so. Deployment steps are in `DEPLOYMENT.md`.
+
+**Architecture:**
+- `backend/src/*.gs` is the server.
+- `Shared.gs` is **generated from estimator.html**, so the server validates with the same migration, BOQ and audit code as the browser. The pure state/migration code was moved into its own `<script id="state">` block, without changes, so it can be shared.
+- Projects are stored as versioned JSON chunks in the **Versions** sheet and committed by one update of the **Projects** row.
+- Reporting copies go to **Elements** and **Summary**.
+- Access, requests and the log live in **Members**, **Requests** and **AuditLog**. Drawings and exports go to Drive.
+
+| Requirement | Implementation | Tests |
+|---|---|---|
+| Admin / Estimator / Reviewer roles, project-specific | `ADMINS`, `CREATORS` properties; Members sheet; `requireRole_` on every operation | B6-03, B6-04, B6-19 |
+| Server-side authentication/authorization | `Session.getActiveUser()` or tokeninfo-verified ID token (audience, issuer, verified e-mail, expiry) | B6-02, O6-08 |
+| Server-side validation | `parseProject_`: size limit, JSON, `migrate()` report must be clean (rejected, never silently fixed), totals recomputed | B6-05, B6-10 |
+| Optimistic concurrency | `baseVersion` must equal the current version, else `CONFLICT` with who/when; the UI shows a diff with both resolutions | B6-06, O6-04 |
+| Atomic / recoverable multi-sheet updates | chunks first, single-row commit, `recover_()` removes uncommitted chunks; reporting rows can never fail a commit | B6-08 |
+| Audit logging | every write, replay and refusal with user, time and request id; paged views | B6-15, O6-07 |
+| Conflict resolution | "use server version" (local backup kept) or explicit "save mine as next version"; history kept | O6-04 |
+| Soft delete and restore | admin only; deleted projects hidden; data intact | B6-13 |
+| Idempotent saves | `requestId` per change; replays return the stored result; the UI's retry reuses it | B6-07, O6-06 |
+| Backups and recovery | daily trigger plus "Back up now"; full spreadsheet copies with retention; recovery steps in DEPLOYMENT.md | B6-17 |
+| Paginated access | projects, versions, audit log (page size capped at 100) | B6-14 |
+| Server-verified save confirmation | SHA-256 of the stored text plus a server-computed total; the browser checks both before showing "✓" | B6-10, O6-02 |
+| No secrets in the HTML | only `google.script.run`; `CLIENT_ID` is public; the served page is scanned for key, token and secret patterns | B6-21 |
+| localStorage not authoritative | online, the cache is reconciled with the server on start; tampered "clean" caches are replaced, real unsynced edits are kept and flagged | O6-03 |
+| Revisions on the server | history immutable; logs append-only; identities and times stamped by the server; results recomputed; approval needs a Reviewer/Admin, not your own submission, and no critical findings | B6-11, B6-12, O6-05 |
+
+**Defects found and fixed during Phase 6 testing:**
+1. **Security.** `api({op: 'constructor'})` resolved to `Object.prototype.constructor` and was executed. Operations are now looked up as own properties only (B6-23).
+2. **Reliability.** A failure while writing reporting rows after a successful commit made the retry report a false conflict. Reporting rows are now best-effort and logged.
+3. **Data integrity.** Chunks are prefixed with `J:` instead of an apostrophe. Real Sheets strips a leading apostrophe, which could corrupt a chunk that itself starts with one.
+4. **The cache reconcile compared raw text**, which differs after every local save, so it would reload needlessly. It now compares the inputs hash, revisions and review records.
+
+**Remaining risks (tested only against the mock):**
+- **Not yet tested on Google.** The Apps Script mock implements exactly the calls the server makes, but has not been checked against real Google services; run the manual checklist after deploying. Google sign-in for non-Workspace accounts (`CLIENT_ID`) is implemented, but its browser part could not be tested here.
+- **Scale.** Reads scan whole sheets, which is fine for hundreds of projects. Apps Script quotas (6-minute runs, daily limits) apply.
+- **Admins can approve their own submissions.** This is by design and is logged.
+- **Deleted projects** remain visible to admins, by design, so they can be restored.

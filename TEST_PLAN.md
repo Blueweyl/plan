@@ -4,7 +4,7 @@
 Requirements: Node 22+ and Playwright with Chromium. In the cloud environment both are preinstalled; locally, run `npm i -g playwright && npx playwright install chromium`.
 
 ```
-npm test                         # every suite (159 tests after Phase 5)
+npm test                         # build check + every suite (190 tests after Phase 6)
 npm run test:engine              # golden master only, no browser needed
 node scripts/make-baseline.mjs --check   # compare engine + exports to BASELINE_RESULTS.json
 node tests/selftest.mjs [dir]    # UI smoke test + screenshots
@@ -46,7 +46,7 @@ When a phase fixes a finding:
 | 3 Calculators | **Done** (`tests/phase3.test.mjs`). |
 | 4 Labor/equipment | **Done** (`tests/phase4.test.mjs`). |
 | 5 Revisions | **Done** (`tests/phase5.test.mjs`). |
-| 6 Sheets backend | Apps Script unit tests (gas-local / clasp); optimistic-concurrency conflict; idempotent replay; role matrix; soft delete; pagination. |
+| 6 Sheets backend | **Done** (`tests/phase6-backend.test.mjs`, `tests/phase6-online.test.mjs`). |
 | 7 PDF takeoff | Scale calibration on fixtures with known dimensions; a suggestion cannot reach an approved BOQ without review (state machine); cost-cap confirmation. |
 | 8 QA | Full regression, performance (1,000 elements), security (XSS corpus, CSV injection), accessibility. |
 
@@ -57,3 +57,20 @@ When a phase fixes a finding:
 - [ ] Print to PDF on A4. Rows are not cut across pages; the title block is present.
 - [ ] Save the project file, clear browser data, open the file. All data is back.
 - [ ] Footer Self-test shows 8/8.
+
+## Phase 6 – server (added)
+| File | Kind | What it proves | Count |
+|---|---|---|---|
+| `tests/phase6-backend.test.mjs` | Server (Node + Apps Script mock) | idempotent setup; Workspace and ID-token sign-in, with rejected tokens; who may create; project-level access; server validation rejects invalid data without storing it; optimistic concurrency; idempotent replays; atomic commit and recovery under injected failures; chunked storage with checksum; verified save confirmation; reviewer limits and server-stamped identities; immutable revision history, append-only logs, role-based and separation-of-duties approval, blocked approval with critical findings, recomputed results; soft delete/restore; pagination; audit log; PDF-only, size-limited drawings; backups with retention; lock; members; exports; served page equals the app and contains no secrets; generated files up to date; unknown/prototype operations rejected. | 23 |
+| `tests/phase6-online.test.mjs` | End-to-end (Chromium + server) | offline file stays offline; create on server with verified confirmation; browser cache not authoritative (tampered clean cache replaced, real unsynced edits kept); two estimators conflicting, with a diff and both resolutions; reviewer refused input changes and comments stamped with the signed-in identity; lost connection and retry with the same request id (no duplicate); members, drawings, versions, audit log and project list through the UI; sign-in state. | 8 |
+
+### Manual checklist after deploying to Google
+- [ ] `setup` runs and creates the spreadsheet, folders, admin and trigger.
+- [ ] Open the web app as admin: "Server v… ✓" appears after **Create on server**.
+- [ ] Add an Estimator and a Reviewer, and open the app as each, in different browsers or profiles.
+- [ ] Estimator and admin save at the same time: the second gets **Conflict** with a diff.
+- [ ] Reviewer: changing a price and saving is refused; adding a comment works and shows the reviewer's e-mail.
+- [ ] Reviewer approves a submitted revision. Approving a revision with critical findings is refused.
+- [ ] Upload a PDF drawing; it appears in Drive under the project folder.
+- [ ] **Back up now** creates a copy in the backup folder.
+- [ ] AuditLog sheet shows every action with request ids.

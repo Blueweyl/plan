@@ -1936,26 +1936,20 @@ function diffInputs(sa, sb) {
 </script>
 
 <!-- ===================================================================== -->
-<!-- APP: state, migration, storage, dashboard, screens, export            -->
+<!-- STATE: defaults and migration (pure; shared with the server)          -->
 <!-- ===================================================================== -->
-<script id="app">
+<script id="state">
 'use strict';
-// ---- Constants
-const KEY = 'estimator.v1', TAB_KEY = 'estimator.v1.tab', THEME_KEY = 'estimator.theme';
-const BACKUP_PREFIX = 'estimator.backup.', PRE_V2_KEY = 'estimator.v1.pre-v2-backup', MAX_BACKUPS = 5;
-const APP_VERSION = '1.1.0', ENGINE_VERSION = '1.0.0', SCHEMA_VERSION = 2;
+// Project state: defaults and the versioned, idempotent migration. Pure (no DOM),
+// so the Apps Script server runs exactly the same validation as the browser.
+const APP_VERSION = '1.2.0', ENGINE_VERSION = '1.0.0', SCHEMA_VERSION = 2;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const SRC_FAJARDO = 'Max B. Fajardo Jr., Simplified Construction Estimate';
-const USER_KEY = 'estimator.user';
-
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const peso = x => '₱' + fmt(x);
 const pad = n => String(n).padStart(2, '0');
 const localDate = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const nowIso = () => new Date().toISOString();
-const clock = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString('en-PH', {hour: 'numeric', minute: '2-digit'}); };
 const isNum = v => typeof v === 'number' ? Number.isFinite(v) : (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)));
 const hasOwn = (o, k) => o != null && Object.prototype.hasOwnProperty.call(o, k);
 const clone = x => JSON.parse(JSON.stringify(x ?? null));
@@ -2143,6 +2137,8 @@ function migrate(raw) {
     for (const k of ['revision', 'changesSinceFile', 'migratedFrom']) if (isNum(m[k])) st.meta[k] = Number(m[k]);
     if (Array.isArray(m.migrationReport)) st.meta.migrationReport = clone(m.migrationReport);
     if (typeof m.projectId === 'string' && ID_RE.test(m.projectId)) st.meta.projectId = m.projectId;
+    if (isObj(m.server) && typeof m.server.projectId === 'string' && ID_RE.test(m.server.projectId))
+      st.meta.server = {projectId: m.server.projectId, version: isNum(m.server.version) ? Number(m.server.version) : 0, sha256: str(m.server.sha256), savedAt: str(m.server.savedAt), dirty: m.server.dirty === true};
   }
   if (isObj(raw.audit)) {
     const a = raw.audit, pol = isObj(a.policy) ? a.policy : {}, P = st.audit.policy;
@@ -2198,6 +2194,21 @@ function migrate(raw) {
   return {state: st, report};
 }
 const loadState = raw => migrate(raw).state;
+</script>
+
+<!-- ===================================================================== -->
+<!-- APP: state, migration, storage, dashboard, screens, export            -->
+<!-- ===================================================================== -->
+<script id="app">
+'use strict';
+// ---- Constants
+const KEY = 'estimator.v1', TAB_KEY = 'estimator.v1.tab', THEME_KEY = 'estimator.theme';
+const BACKUP_PREFIX = 'estimator.backup.', PRE_V2_KEY = 'estimator.v1.pre-v2-backup', MAX_BACKUPS = 5;
+const USER_KEY = 'estimator.user';
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const peso = x => '₱' + fmt(x);
+const clock = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString('en-PH', {hour: 'numeric', minute: '2-digit'}); };
 
 // ---- Storage (never silent: every failure is shown in the top bar)
 const store = {ok: null, at: null, error: null, blocked: false, corruptText: null, report: []};
@@ -2243,7 +2254,7 @@ const userName = () => (lsGet(USER_KEY) || '').trim();
 function persist({countChange = true} = {}) {
   AUD = null;
   S.meta.updatedAt = nowIso();
-  if (countChange) S.meta.changesSinceFile = (S.meta.changesSinceFile || 0) + 1;
+  if (countChange) { S.meta.changesSinceFile = (S.meta.changesSinceFile || 0) + 1; if (S.meta.server) S.meta.server.dirty = true; }
   if (store.blocked) { store.ok = false; store.error = 'Autosave paused to protect unreadable saved data. Download it from Project → Local backups, then resume.'; renderStatus(); return false; }
   try { localStorage.setItem(KEY, JSON.stringify(S)); store.ok = true; store.at = S.meta.updatedAt; store.error = null; }
   catch (e) { store.ok = false; store.error = `Not saved in this browser (${e.name || 'Error'}: ${e.message}). Use “Save file” now to keep your work.`; }
@@ -2469,6 +2480,46 @@ const App = {
   openNav() { document.body.classList.add('nav-open'); },
   closeNav() { document.body.classList.remove('nav-open'); },
   goDiv(k) { focusDiv = k; App.tab('boq'); },
+  serverSaveBtn() { serverSave(); },
+  serverRetry() { if (SERVER.pending) serverSave(SERVER.pending.rid, SERVER.pending.base); },
+  async serverReload() {
+    if (S.meta.server.dirty && !confirm('Discard the unsynced changes in this browser and load the server copy? (A local backup is kept.)')) return;
+    writeBackup(JSON.stringify(S), 'before-server-reload');
+    try { loadServer(await gcall('getProject', {projectId: S.meta.server.projectId}), 'Reloaded from the server.'); } catch (e) { SERVER.error = serverErr(e); }
+    render();
+  },
+  serverList(token) { serverLoadList(token || ''); },
+  async serverOpen(pid) {
+    if (S.meta.server && S.meta.server.dirty && !confirm('This browser has unsynced changes. Open another project anyway? (A local backup is kept.)')) return;
+    writeBackup(JSON.stringify(S), 'before-server-open');
+    try { loadServer(await gcall('getProject', {projectId: pid}), 'Opened from the server.'); SERVER.members = SERVER.drawings = SERVER.versions = null; SERVER.conflict = null; } catch (e) { SERVER.error = serverErr(e); }
+    render();
+  },
+  serverDelete(pid) { if (confirm('Delete this project on the server? It can be restored by an administrator.')) serverWrite('deleteProject', {projectId: pid}, () => serverLoadList(SERVER.list ? SERVER.list.token : '')); },
+  serverRestore(pid) { serverWrite('restoreProject', {projectId: pid}, () => serverLoadList(SERVER.list ? SERVER.list.token : '')); },
+  serverPanels() { serverLoadPanels(); },
+  serverMemberAdd() {
+    const email = (document.getElementById('srvMemberEmail') || {}).value || '', role = (document.getElementById('srvMemberRole') || {}).value;
+    serverWrite('setMember', {projectId: S.meta.server.projectId, email, role}, () => serverLoadPanels());
+  },
+  serverMemberDel(email) { if (confirm(`Remove ${email} from this project?`)) serverWrite('setMember', {projectId: S.meta.server.projectId, email, role: null}, () => serverLoadPanels()); },
+  serverAuditBtn(token) { serverAudit(token || ''); },
+  serverBackup() { serverWrite('runBackup', {}, r => { SERVER.error = null; alert(`Backup created. ${r.trashed} old backup(s) removed.`); }); },
+  serverExportCsv() {
+    const g = exportGate(); if (!g) return;
+    serverWrite('saveExport', {projectId: S.meta.server.projectId, name: `${fileBase()} BOQ v${S.meta.server.version}.csv`, content: csvExportText(g.b)}, r => { alert(`Saved to Drive: ${r.name}`); });
+  },
+  conflictTakeServer() {
+    if (!SERVER.conflict) return;
+    writeBackup(JSON.stringify(S), 'before-conflict-take-server');
+    loadServer(SERVER.conflict.server, `Your copy was replaced by server version ${SERVER.conflict.server.version}; it is kept as a local backup.`);
+    SERVER.conflict = null; render();
+  },
+  conflictKeepMine() {
+    if (!SERVER.conflict) return;
+    if (!confirm(`Save your copy as the version after ${SERVER.conflict.server.version}? Changes in the server version that are not in your copy will be replaced (they stay in the server's version history).`)) return;
+    serverSave(undefined, SERVER.conflict.server.version);
+  },
   tradeAdd() { S.laborSetup.trades.push({id: uid(), name: 'New trade', wage: null}); persist(); render(); },
   tradeDel(id) {
     if (S.laborSetup.crews.some(c => c.members.some(m => m.trade === id))) return alert('This trade is used in a crew. Remove it from the crew first.');
@@ -2499,6 +2550,150 @@ function download(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
+// ---- Server (Google Apps Script). Available only when served by the web app; the
+// standalone file stays offline. Online, the server copy is the record and this
+// browser's copy is a cache: on start the app reconciles with the server.
+const SERVER = {available: typeof google !== 'undefined' && !!(google.script && google.script.run), status: 'offline', user: null, config: null, error: null,
+  list: null, includeDeleted: false, members: null, drawings: null, audit: null, versions: null, conflict: null, verified: null, pending: null, idToken: null, inflight: 0};
+const newRequestId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+async function sha256Hex(text) { const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return Array.from(new Uint8Array(h), b => b.toString(16).padStart(2, '0')).join(''); }
+function gcall(op, args = {}, requestId) {
+  return new Promise((resolve, reject) => {
+    const req = {op, args};
+    if (requestId) req.requestId = requestId;
+    if (SERVER.idToken) req.idToken = SERVER.idToken;
+    SERVER.inflight++;
+    google.script.run.withSuccessHandler(r => { SERVER.inflight--; r && r.ok ? resolve(r.result) : reject((r && r.error) || {code: 'INTERNAL', message: 'No response.'}); })
+      .withFailureHandler(e => { SERVER.inflight--; reject({code: 'NETWORK', message: (e && e.message) || String(e)}); }).api(req);
+  });
+}
+const serverErr = e => `${(e && e.message) || 'Server error'}${e && e.code ? ' [' + e.code + ']' : ''}`;
+async function serverInit() {
+  if (!SERVER.available) return;
+  SERVER.status = 'connecting'; renderStatus();
+  try {
+    SERVER.user = await gcall('whoami'); SERVER.config = await gcall('config'); SERVER.status = 'ok'; SERVER.error = null;
+    const link = S.meta.server;
+    if (link && link.projectId) {
+      const res = await gcall('getProject', {projectId: link.projectId});
+      if (res.version > link.version && link.dirty) SERVER.conflict = {server: res, reason: `Version ${res.version} was saved on the server (by ${res.savedBy}) while this browser has unsynced changes.`};
+      else if (!link.dirty && (res.version !== link.version || res.sha256 !== link.sha256)) loadServer(res, 'Loaded the server copy (the browser cache was out of date).');
+      else if (!link.dirty) {   // same version: make sure the cache really holds the server's data (inputs, revisions, review records)
+        const srv = migrate(JSON.parse(res.project)).state, same = inputHashes(srv).all === inputHashes(S).all && canon(srv.revisions) === canon(S.revisions) && canon(srv.audit) === canon(S.audit);
+        if (!same) loadServer(res, 'Loaded the server copy (the browser cache differed from it).');
+      }
+    }
+  } catch (e) {
+    if (e.code === 'UNAUTHENTICATED') { SERVER.status = 'signin'; try { SERVER.config = SERVER.config || await gcall('config'); } catch (x) {} googleSignIn(); }
+    else { SERVER.status = 'error'; SERVER.error = serverErr(e); }
+  }
+  render();
+}
+const stripLink = st => { const c = clone(st); if (c.meta) delete c.meta.server; return c; };
+function googleSignIn() {   // Google Identity Services, only when the deployment is not domain-restricted (CLIENT_ID set)
+  const cid = SERVER.config && SERVER.config.clientId;
+  if (!cid) { SERVER.error = 'Sign in to Google in this browser and reload. (No CLIENT_ID is configured for other Google accounts.)'; return; }
+  const go = () => { google.accounts.id.initialize({client_id: cid, callback: r => { SERVER.idToken = r.credential; serverInit(); }}); const el = document.getElementById('gsiButton'); if (el) google.accounts.id.renderButton(el, {theme: 'outline', size: 'large'}); };
+  if (window.google && google.accounts && google.accounts.id) return go();
+  const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = go; document.head.appendChild(sc);
+}
+function loadServer(res, note) {
+  const {state, report} = migrate(JSON.parse(res.project));
+  S = state;
+  S.meta.server = {projectId: res.projectId, version: res.version, sha256: res.sha256, savedAt: res.savedAt || '', dirty: false};
+  S.meta.changesSinceFile = 0;
+  store.report = report.filter(r => r.level !== 'info').concat(note ? [{level: 'info', code: 'SERVER_LOADED', message: note}] : []);
+  revCache.clear(); persist({countChange: false});
+}
+async function serverSave(requestId, overrideBase) {
+  if (!SERVER.available || SERVER.status !== 'ok') return alert('Not connected to the server.');
+  const link = S.meta.server, rid = requestId || newRequestId(), text = JSON.stringify(stripLink(S));
+  SERVER.pending = {rid, base: overrideBase ?? (link ? link.version : 0)}; SERVER.error = null; renderStatus();
+  try {
+    const res = link && link.projectId ? await gcall('saveProject', {projectId: link.projectId, baseVersion: SERVER.pending.base, project: text}, rid) : await gcall('createProject', {project: text}, rid);
+    const okHash = await sha256Hex(res.project) === res.sha256, okTotal = Math.abs(buildBOQ(migrate(JSON.parse(res.project)).state).totals.grand - res.grandTotal) < 0.005;
+    SERVER.verified = {ok: okHash && okTotal, version: res.version, at: res.savedAt, replayed: !!res.replayed};
+    SERVER.pending = null; SERVER.conflict = null;
+    loadServer(res, okHash && okTotal ? `Saved to the server as version ${res.version} and verified.` : 'Saved, but the server confirmation did not match. Reload from the server before continuing.');
+  } catch (e) {
+    if (e.code === 'CONFLICT') {
+      SERVER.pending = null;
+      try { SERVER.conflict = {server: await gcall('getProject', {projectId: link.projectId}), reason: e.message}; } catch (x) { SERVER.error = serverErr(x); }
+    } else if (e.code === 'NETWORK' || e.code === 'BUSY' || e.code === 'INTERNAL') SERVER.error = `Not saved: ${serverErr(e)}. Use “Retry save” (the same request is sent again, so it cannot be saved twice).`;
+    else { SERVER.pending = null; SERVER.error = `Not saved: ${serverErr(e)}${e.report ? ' – ' + e.report.slice(0, 3).map(r => r.message).join(' ') : ''}`; }
+  }
+  render();
+}
+async function serverLoadList(token) {
+  try { const r = await gcall('listProjects', {pageSize: 10, pageToken: token || '', includeDeleted: SERVER.includeDeleted}); SERVER.list = {...r, token: token || ''}; } catch (e) { SERVER.error = serverErr(e); }
+  render();
+}
+async function serverLoadPanels() {
+  const pid = S.meta.server && S.meta.server.projectId; if (!pid) return;
+  try {
+    const [m, d, v] = await Promise.all([gcall('listMembers', {projectId: pid}), gcall('listDrawings', {projectId: pid}), gcall('listVersions', {projectId: pid, pageSize: 10})]);
+    SERVER.members = m.items; SERVER.drawings = d.items; SERVER.versions = v;
+  } catch (e) { SERVER.error = serverErr(e); }
+  render();
+}
+async function serverAudit(token) {
+  const pid = S.meta.server && S.meta.server.projectId;
+  try { SERVER.audit = await gcall('listAudit', {projectId: pid || '', pageSize: 10, pageToken: token || ''}); SERVER.audit.token = token || ''; } catch (e) { SERVER.error = serverErr(e); }
+  render();
+}
+async function serverWrite(op, args, done) {
+  try { const r = await gcall(op, args, newRequestId()); if (done) await done(r); } catch (e) { SERVER.error = serverErr(e); }
+  render();
+}
+function serverCard() {
+  if (!SERVER.available) return `<div class="card"><h2>Server</h2><p class="muted" style="margin:0">This copy is the standalone file and works offline. To share projects with other estimators, open the app from your organisation's Google Apps Script web address (see DEPLOYMENT.md).</p></div>`;
+  const u = SERVER.user, link = S.meta.server, myRole = u && link ? (u.admin ? 'admin' : (u.memberships.find(m => m.projectId === link.projectId) || {}).role) : null;
+  const L = SERVER.list, A = SERVER.audit, C = SERVER.conflict;
+  let conflict = '';
+  if (C) {
+    const srv = migrate(JSON.parse(C.server.project)).state, els = diffElements(srv, S), inp = diffInputs(srv, S), d = diffBOQ(buildBOQ(srv), buildBOQ(S));
+    conflict = `<div class="note bad" id="serverConflict"><b>Conflict.</b> ${esc(C.reason)} Server version ${esc(C.server.version)} was saved by ${esc(C.server.savedBy)} at ${esc(String(C.server.savedAt).slice(0, 16).replace('T', ' '))}.
+      <div style="margin-top:6px">Your copy differs from it in ${els.length} element(s) and ${inp.length} price/factor/setting value(s); total ${esc(peso(d.totals.grand.a))} on the server, ${esc(peso(d.totals.grand.b))} here.</div>
+      ${els.length || inp.length ? `<ul style="margin:6px 0 0 16px">${els.slice(0, 8).map(e => `<li>${esc(e.status)} ${esc(e.mark)}${e.changes.length ? ': ' + esc(e.changes.slice(0, 3).map(c => c[0] + ' ' + c[1] + ' → ' + c[2]).join(', ')) : ''}</li>`).join('')}${inp.slice(0, 6).map(x => `<li>${esc(x.area)} ${esc(x.path)}: ${esc(String(x.from))} → ${esc(String(x.to))}</li>`).join('')}</ul>` : ''}
+      <div class="row" style="margin-top:8px"><button class="btn" data-act="conflictTakeServer">Use the server version (my copy is backed up)</button><button class="btn danger" data-act="conflictKeepMine">Save my copy as the next version</button></div></div>`;
+  }
+  return `<div class="card" id="serverCard"><div class="row between"><h2 style="margin:0">Server</h2><span class="muted" style="font-size:12px">${u ? `Signed in as <b>${esc(u.email)}</b>${u.admin ? ' · admin' : ''}${myRole ? ' · ' + esc(myRole) + ' on this project' : ''}` : esc(SERVER.status)}</span></div>
+    ${SERVER.status === 'signin' ? `<p>Sign in with your Google account to use the server.</p><div id="gsiButton"></div>` : ''}
+    ${SERVER.error ? `<div class="note bad" id="serverError">${esc(SERVER.error)}${SERVER.pending ? ' <button class="btn sm" data-act="serverRetry">Retry save</button>' : ''}</div>` : ''}
+    ${conflict}
+    <p class="muted" style="margin:8px 0">${link ? `Linked to server project <b>${esc(link.projectId)}</b>, version ${esc(link.version)}${link.dirty ? ' · <b>unsynced changes in this browser</b>' : ' · in sync'}${SERVER.verified && SERVER.verified.version === link.version ? (SERVER.verified.ok ? ' · last save verified ✓' : ' · <b>last save could not be verified</b>') : ''}.` : 'This project is not on the server yet.'} The server copy is the record; this browser keeps a cache.</p>
+    <div class="row">
+      <button class="btn pri" data-act="serverSaveBtn" ${SERVER.status === 'ok' && !C ? '' : 'disabled'}>${link ? 'Save to server' : 'Create on server'}</button>
+      ${link ? '<button class="btn" data-act="serverReload">Reload from server</button><button class="btn" data-act="serverPanels">Members, drawings, versions</button><button class="btn" data-act="serverExportCsv">Save BOQ CSV to Drive</button>' : ''}
+      <button class="btn" data-act="serverList">Projects on the server</button><button class="btn" data-act="serverAuditBtn">Audit log</button>
+      ${u && u.admin ? '<button class="btn" data-act="serverBackup">Back up now</button>' : ''}
+    </div>
+    ${L ? `<h3>Projects on the server</h3>${u && u.admin ? `<label class="chk"><input type="checkbox" id="srvDeleted" ${SERVER.includeDeleted ? 'checked' : ''}> Show deleted projects</label>` : ''}
+      <div class="tbl-wrap"><table id="serverList"><tr><th>Project</th><th class="n">Version</th><th>Updated</th><th class="n">Total</th><th>Your role</th><th></th></tr>${L.items.map(x => `<tr><td><b>${esc(x.name)}</b><div class="muted" style="font-size:11px">${esc(x.projectId)}${x.deleted ? ' · deleted' : ''}</div></td><td class="n">${esc(x.currentVersion)}</td><td>${esc(String(x.updatedAt).slice(0, 16).replace('T', ' '))}<div class="muted" style="font-size:11px">${esc(x.updatedBy)}</div></td><td class="n">${esc(peso(x.grandTotal))}</td><td>${esc(x.role)}</td>
+        <td class="row">${x.deleted ? '' : `<button class="btn sm" data-act="serverOpen" data-arg="${esc(x.projectId)}">Open</button>`}${u && u.admin ? (x.deleted ? `<button class="btn sm" data-act="serverRestore" data-arg="${esc(x.projectId)}">Restore</button>` : `<button class="btn sm danger" data-act="serverDelete" data-arg="${esc(x.projectId)}">Delete</button>`) : ''}</td></tr>`).join('')}</table></div>
+      <div class="row" style="margin-top:6px">${L.token ? `<button class="btn sm" data-act="serverList" data-arg="">First page</button>` : ''}${L.nextPageToken ? `<button class="btn sm" data-act="serverList" data-arg="${esc(L.nextPageToken)}">Next page</button>` : ''}<span class="muted" style="font-size:12px">${esc(L.total)} project(s)</span></div>` : ''}
+    ${link && SERVER.members ? `<h3>Members</h3><div class="tbl-wrap"><table id="serverMembers"><tr><th>E-mail</th><th>Role</th><th></th></tr>${SERVER.members.map(m => `<tr><td>${esc(m.email)}</td><td>${esc(m.role)}</td><td>${u && u.admin ? `<button class="btn sm danger" data-act="serverMemberDel" data-arg="${esc(m.email)}">Remove</button>` : ''}</td></tr>`).join('')}</table></div>
+      ${u && u.admin ? `<div class="row" style="margin-top:6px"><input id="srvMemberEmail" placeholder="name@company.com" style="max-width:260px"><select id="srvMemberRole" style="width:auto"><option value="estimator">Estimator</option><option value="reviewer">Reviewer</option></select><button class="btn sm" data-act="serverMemberAdd">Add / change</button></div>` : ''}
+      <h3>Drawings (PDF)</h3>${SERVER.drawings.length ? `<ul id="serverDrawings">${SERVER.drawings.map(d => `<li>${esc(d.name)} <span class="muted" style="font-size:12px">${esc(Math.round(d.bytes / 1024))} KB · ${esc(String(d.uploadedAt).slice(0, 10))} · ${esc(d.uploadedBy)}</span></li>`).join('')}</ul>` : '<p class="muted" id="serverDrawings">No drawings uploaded.</p>'}
+      ${myRole === 'estimator' || myRole === 'admin' ? `<input type="file" id="srvDrawing" accept="application/pdf">` : ''}
+      ${SERVER.versions ? `<h3>Versions</h3><div class="tbl-wrap"><table><tr><th class="n">Version</th><th>Saved</th><th>By</th><th>SHA-256</th></tr>${SERVER.versions.items.map(v => `<tr><td class="n">${esc(v.version)}</td><td>${esc(String(v.savedAt).slice(0, 16).replace('T', ' '))}</td><td>${esc(v.savedBy)}</td><td class="muted" style="font-size:11px">${esc(String(v.sha256).slice(0, 16))}…</td></tr>`).join('')}</table></div>` : ''}` : ''}
+    ${A ? `<h3>Audit log</h3><div class="tbl-wrap"><table id="serverAudit"><tr><th>When</th><th>User</th><th>Operation</th><th class="n">Version</th><th>Result</th><th>Details</th></tr>${A.items.map(a => `<tr><td>${esc(String(a.at).slice(0, 19).replace('T', ' '))}</td><td>${esc(a.user)}</td><td>${esc(a.op)}</td><td class="n">${esc(a.version)}</td><td>${esc(a.result)}</td><td class="muted" style="font-size:12px">${esc(a.details)}</td></tr>`).join('')}</table></div>
+      <div class="row" style="margin-top:6px">${A.token ? '<button class="btn sm" data-act="serverAuditBtn" data-arg="">Newest</button>' : ''}${A.nextPageToken ? `<button class="btn sm" data-act="serverAuditBtn" data-arg="${esc(A.nextPageToken)}">Older</button>` : ''}</div>` : ''}
+  </div>`;
+}
+document.addEventListener('change', ev => {
+  if (ev.target.id === 'srvDeleted') { SERVER.includeDeleted = ev.target.checked; serverLoadList(''); }
+  if (ev.target.id === 'srvDrawing' && ev.target.files[0]) {
+    const f = ev.target.files[0], pid = S.meta.server && S.meta.server.projectId;
+    if (f.type !== 'application/pdf') { SERVER.error = 'Only PDF drawings can be uploaded.'; render(); return; }
+    const r = new FileReader();
+    r.onload = () => { const bytes = new Uint8Array(r.result); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      serverWrite('uploadDrawing', {projectId: pid, name: f.name, mimeType: 'application/pdf', base64: btoa(bin)}, () => serverLoadPanels()); };
+    r.readAsArrayBuffer(f);
+  }
+});
+if (SERVER.available) setTimeout(serverInit, 0);
+
 // ---- Revisions
 const ENGINE_CODE_HASH = (() => { try { return hash64(['engine', 'modules', 'labor'].map(id => (document.getElementById(id) || {}).textContent || '').join('\n')); } catch (e) { return ''; } })();
 const REV_LABEL = Object.fromEntries(REV_STATUSES);
@@ -2675,6 +2870,14 @@ function renderStatus() {
   else if (store.at) html = `<span class="chip good" title="Autosaved in this browser"><span class="dot"></span>Saved ${esc(clock(store.at))}</span>`;
   else html = `<span class="chip"><span class="dot"></span>Loaded</span>`;
   html += n ? ` <span class="chip warn" title="Changes since the last project-file save">${n} unsaved to file</span>` : (S.meta.fileSavedAt ? ` <span class="chip good">File saved</span>` : '');
+  if (SERVER.available) {
+    const link = S.meta.server;
+    html += SERVER.conflict ? ' <button class="chip bad" data-act="tab:project" id="serverChip">Server: conflict</button>'
+      : SERVER.status !== 'ok' ? ` <button class="chip ${SERVER.status === 'error' ? 'bad' : ''}" data-act="tab:project" id="serverChip">Server: ${esc(SERVER.status === 'signin' ? 'sign in' : SERVER.status)}</button>`
+      : !link ? ' <button class="chip warn" data-act="tab:project" id="serverChip">Not on server</button>'
+      : link.dirty ? ` <button class="chip warn" data-act="tab:project" id="serverChip">Server v${esc(link.version)} · unsynced</button>`
+      : ` <button class="chip good" data-act="tab:project" id="serverChip">Server v${esc(link.version)}${SERVER.verified && SERVER.verified.version === link.version && SERVER.verified.ok ? ' ✓' : ''}</button>`;
+  }
   document.getElementById('saveStatus').innerHTML = html;
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   document.getElementById('themeBtn').innerHTML = `<span style="width:16px;height:16px;display:inline-flex">${icon(dark ? 'sun' : 'moon')}</span><span class="lbl">${dark ? 'Light' : 'Dark'}</span>`;
@@ -2780,6 +2983,7 @@ function vProject() {
   const rep = store.report;
   const Qn = S.quarantine;
   return `<div class="stack">
+  ${serverCard()}
   ${rep.length ? `<div class="card"><div class="row between"><h2 style="margin:0">Load report</h2><button class="btn sm" data-act="dismissReport">Dismiss</button></div>
     <div class="tbl-wrap" style="margin-top:10px"><table><tr><th>Level</th><th>Code</th><th>Message</th></tr>${rep.map(r => `<tr><td><span class="pill ${r.level === 'critical' || r.level === 'error' ? 'bad' : r.level === 'warn' ? 'warn' : ''}">${esc(r.level)}</span></td><td class="muted">${esc(r.code)}</td><td>${esc(r.message)}</td></tr>`).join('')}</table></div></div>` : ''}
   <div class="card"><h2>Project information</h2>

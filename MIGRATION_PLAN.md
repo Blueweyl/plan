@@ -61,3 +61,12 @@ The original app is kept as `original/estimator.v1.html`, and the pre-v2 backup 
 
 ## Design file (`.dc.html`)
 If its project format differs, a separate `importDesignFile()` adapter will map it to v2 with its own report. It will be specified once the file is available.
+
+## Later additions (still schema v2, additive only)
+- **Phase 2:** `audit`, `takeoff`, `meta.projectId`.
+- **Phase 3:** module factor groups (unset = `null`).
+- **Phase 4:** `laborSetup`, plus labor item fields `crew`, `output`, `crews`, `lump`, `equip`, `eqOutput`, `attach`.
+- **Phase 5:** `revisions`, `meta.basedOn`.
+- **Phase 6:** `meta.server` (local link to the server copy; stripped by the server before storing).
+
+Each addition is sanitised by `migrate()` and covered by that phase's migration tests. Older files load with defaults, without warnings.
