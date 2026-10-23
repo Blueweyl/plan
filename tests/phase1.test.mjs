@@ -10,7 +10,7 @@ import {launch, openApp} from './lib/browser.mjs';
 const fixture = readJSON('tests/fixtures/sample-18.estimate.json');
 const BASE = readJSON('BASELINE_RESULTS.json');
 const clone = x => JSON.parse(JSON.stringify(x));
-const TABS = ['dashboard', 'elements', 'rebar', 'boq', 'prices', 'factors', 'project', 'selftest'];
+const TABS = ['dashboard', 'elements', 'rebar', 'boq', 'audit', 'prices', 'factors', 'project', 'selftest'];
 let browser;
 test.before(async () => { browser = await launch(); });
 test.after(async () => { await browser.close(); });
@@ -54,7 +54,7 @@ test('P1-03 every peso amount on the dashboard is a computed value (no fabricate
 test('P1-04 every navigation item opens a working view', async () => {
   const app = await openApp(browser, {state: fixture});
   const n = await app.page.locator('#nav button').count();
-  assert.equal(n, 7);
+  assert.equal(n, 8);
   for (let i = 0; i < n; i++) {
     const b = app.page.locator('#nav button').nth(i);
     await b.click();
@@ -108,7 +108,7 @@ test('P1-08 "Needs attention" reports real counts and clears when resolved', asy
   await app.page.evaluate(() => App.tab('dashboard'));
   const used = await app.page.evaluate(() => new Set(buildBOQ(S).rows.filter(r => r.kind === 'mat').map(r => r.code)).size);
   assert.match(await app.page.textContent('#view'), new RegExp(`${used} of ${used} priced materials use sample prices`));
-  await app.page.evaluate(() => { for (const p of Object.values(S.prices)) p.source = 'user'; render(); });
+  await app.page.evaluate(() => { for (const p of Object.values(S.prices)) p.source = 'user'; persist(); render(); });
   assert.doesNotMatch(await app.page.textContent('#view'), /use sample prices/);
   await app.close();
 });
@@ -219,7 +219,7 @@ test('P1-15 navigation works from the keyboard', async () => {
   await app.page.keyboard.press('Enter');
   assert.equal(await app.page.evaluate(() => cur), 'boq');
   await app.page.keyboard.press('Tab');
-  assert.equal(await app.page.evaluate(() => document.activeElement.textContent.trim()), 'Prices');
+  assert.match(await app.page.evaluate(() => document.activeElement.textContent.trim()), /^Audit/);
   await app.close();
 });
 

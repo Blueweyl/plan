@@ -53,6 +53,7 @@ main{padding:20px;max-width:1320px;width:100%;margin:0 auto}
 .btn:hover{border-color:var(--accent)}
 .btn:focus-visible,.nav button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.cta{background:var(--orange);color:#fff;border-color:var(--orange)}
 :root[data-theme="dark"] .btn.cta{color:#1b1206}
 .btn.sm{padding:3px 9px;font-size:12px}
@@ -160,6 +161,22 @@ dialog::backdrop{background:rgba(10,15,25,.45)}
 .kv b{font-weight:600}
 .pass{color:var(--good);font-weight:600}.fail{color:var(--bad);font-weight:600}
 .err{color:var(--bad);font-size:12px}
+.sev.major{background:var(--orange-soft);color:var(--orange)}
+.sev.minor{background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
+.sevcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.sevcard{border-left:5px solid var(--c);padding:12px 14px}
+.sevcard .n{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.sevcard .s{font-size:12px;color:var(--muted)}
+.find{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--panel)}
+.find .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.find .id{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--muted)}
+.find .ev{font-size:11.5px;color:var(--muted);margin-top:6px;font-family:ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:160px;overflow:auto;background:var(--panel-2);border-radius:6px;padding:6px 8px}
+.find .sg{font-size:12.5px;margin-top:6px}
+.find .hist{font-size:12px;color:var(--muted);margin-top:6px}
+.checks{display:grid;gap:4px;margin-bottom:8px}
+.checks div{font-size:12px;display:flex;gap:6px;align-items:flex-start}
+.wm-banner{display:none;border:2px solid #c62828;color:#c62828;padding:6px 10px;font-weight:700;margin:0 0 8px}
+.ok-banner{display:none;border:2px solid #1d8a4e;color:#1d8a4e;padding:6px 10px;font-weight:700;margin:0 0 8px}
 .print-only{display:none}
 .scrim{display:none}
 @media (max-width:1000px){.g-2{grid-template-columns:1fr}}
@@ -182,6 +199,8 @@ dialog::backdrop{background:rgba(10,15,25,.45)}
   .card,details.boqdiv{box-shadow:none;border-color:#bbb}
   .print-only{display:block}
   th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .wm-banner:not(:empty),.ok-banner:not(:empty){display:block}
+  body[data-watermark]::after{content:attr(data-watermark);position:fixed;top:42%;left:-20%;right:-20%;text-align:center;transform:rotate(-28deg);font-size:40px;font-weight:800;color:rgba(198,40,40,.18);z-index:100;pointer-events:none}
 }
 </style>
 </head>
@@ -826,6 +845,352 @@ function runSelfTests() {
 </script>
 
 <!-- ===================================================================== -->
+<!-- AUDITOR: deterministic estimate checks (no DOM, no clock, no LLM)     -->
+<!-- ===================================================================== -->
+<script id="auditor">
+'use strict';
+// Smart Estimate Auditor: deterministic rules over the saved inputs and the
+// engine's own outputs. No randomness, no clock (callers pass `today`), no LLM.
+const AUDIT_VERSION = '1.0.0';
+const SEV_ORDER = {critical: 0, major: 1, minor: 2, info: 3};
+const SEV_LABEL = {critical: 'Critical', major: 'Major', minor: 'Minor', info: 'Info'};
+const TAKEOFF_SCOPES = [
+  ['FTG', 'Footings', ['footing', 'wallfooting']], ['COL', 'Columns', ['column']], ['BEAM', 'Beams', ['beam']], ['SLAB', 'Slabs', ['slab']],
+  ['RCW', 'RC walls', ['rcwall']], ['STR', 'Stairs', ['stairs']], ['CHB', 'CHB walls', ['chbwall']], ['PART', 'Partitions & cubicles', ['chbpart', 'drywall', 'cubicle']], ['CEIL', 'Ceilings', ['ceiling']],
+];
+const TAKEOFF_STATUS = [['pending', 'Not started'], ['progress', 'In progress'], ['complete', 'Complete'], ['na', 'Not applicable']];
+const EXPORT_POLICIES = [
+  ['draft-watermark', 'Watermark every export that is not from an approved, unchanged estimate'],
+  ['watermark-issues-only', 'Watermark only when critical or major findings are open'],
+  ['block-critical', 'Watermark drafts, and refuse exports while critical findings exist'],
+];
+// Data-entry plausibility limits (not engineering limits): values outside them
+// usually mean a unit slip such as millimetres typed into a metre field.
+const AUDIT_LIMITS = {mMax: 100, sectionMax: 3, mMin: 0.01, coverMin: 10, coverMax: 150, spacingMin: 25, spacingMax: 1000, plasterMin: 5, plasterMax: 50, markupMax: 50};
+const SECTION_KEYS = new Set(['b', 'h', 't', 'T', 'B']);
+const ALLOW_ZERO = new Set(['botAnch', 'Lo', 'ct', 'anch', 'nXT', 'nXB', 'lXT', 'lXB', 'vX', 'waste', 'nLn']);
+const RELEVANT = {
+  column: {sLo: i => i.Lo > 0},
+  beam: {sLo: i => i.Lo > 0, lXT: i => i.nXT > 0, lXB: i => i.nXB > 0},
+  slab: {sT: i => i.top !== 'none'},
+};
+const RULES = {
+  'R-DIM-001': ['critical', 'Input is not a finite number'],
+  'R-DIM-002': ['critical', 'Negative dimension or count'],
+  'R-DIM-003': ['critical', 'Zero where a positive value is required'],
+  'R-DIM-004': ['major', 'Element quantity is zero or not a whole number'],
+  'R-DIM-005': ['critical', 'Openings are as large as or larger than the wall'],
+  'R-DIM-006': ['major', 'Openings text could not be read'],
+  'R-UNIT-001': ['major', 'Value looks like it was entered in the wrong unit'],
+  'R-QTY-001': ['critical', 'Element produces no quantities'],
+  'R-RB-001': ['critical', 'Cover leaves no room for reinforcement'],
+  'R-RB-002': ['major', 'Bar spacing is larger than the member'],
+  'R-RB-003': ['critical', 'Rebar missing from the BOQ'],
+  'R-RB-004': ['minor', 'Confined zone is ignored'],
+  'R-PRICE-001': ['critical', 'BOQ material has no price'],
+  'R-PRICE-002': ['critical', 'Sample prices are used'],
+  'R-PRICE-003': ['major', 'Price is older than the validity period'],
+  'R-PRICE-004': ['major', 'Labor rate is zero'],
+  'R-PRICE-005': ['major', 'Sample labor rates are used'],
+  'R-PRICE-006': ['info', 'Price date is not recorded'],
+  'R-COEF-001': ['critical', 'Unverified estimating coefficients are used'],
+  'R-COEF-002': ['critical', 'Interpolated coefficient without a source is used'],
+  'R-DUP-001': ['major', 'Possible duplicate elements'],
+  'R-DUP-002': ['major', 'Element mark used more than once'],
+  'R-OVL-001': ['minor', 'Suspected slab–beam concrete overlap'],
+  'R-OVL-002': ['minor', 'Suspected column–beam concrete overlap'],
+  'R-REC-001': ['critical', 'Quantities and costs do not reconcile'],
+  'R-REC-002': ['minor', 'Printed amounts do not add up after rounding'],
+  'R-REC-003': ['critical', 'A total is not a finite number'],
+  'R-MKP-001': ['critical', 'Invalid markup or VAT'],
+  'R-MKP-002': ['major', 'Unusual markup or VAT'],
+  'R-TO-001': ['minor', 'Level has no elements'],
+  'R-TO-002': ['major', 'Drawing takeoff is not complete'],
+  'R-TO-003': ['major', 'Scope marked complete but has no elements'],
+  'R-TO-004': ['major', 'Scope marked not applicable but has elements'],
+  'R-QUA-001': ['major', 'Quarantined elements are not costed'],
+  'R-STALE-001': ['major', 'Approved estimate has changed since approval'],
+  'R-STALE-002': ['info', 'Estimate has changed since the last export'],
+};
+
+function defaultAuditState() {
+  return {policy: {priceValidityDays: 90, unverifiedCoefficients: 'critical', exportPolicy: 'draft-watermark'}, acks: {}, approval: null, approvalLog: [], lastExport: null};
+}
+
+// ---- Hashing (FNV-1a, two seeds) over canonical JSON
+function fnv(s, seed) { let h = seed >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
+const hash64 = s => fnv(s, 0x811c9dc5) + fnv(s, 0x01234567);
+function canon(x) {
+  if (Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';
+  if (x && typeof x === 'object') return '{' + Object.keys(x).sort().map(k => JSON.stringify(k) + ':' + canon(x[k])).join(',') + '}';
+  return JSON.stringify(x === undefined ? null : x);
+}
+// Hash of everything that can change a quantity or a cost (metadata excluded)
+function inputHashes(st) {
+  const parts = {
+    levels: st.levels.map(l => ({id: l.id, name: l.name})),
+    elements: st.elements.map(e => ({id: e.id, type: e.type, mark: e.mark, level: e.level, qty: e.qty, inp: e.inp})),
+    factors: st.factors,
+    prices: Object.fromEntries(Object.entries(st.prices).map(([k, p]) => [k, {name: p.name, price: p.price}])),
+    labor: Object.fromEntries(Object.entries(st.labor).map(([k, l]) => [k, {name: l.name, mode: l.mode, rate: l.rate}])),
+    settings: st.settings,
+  };
+  const h = Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, hash64(canon(v))]));
+  h.all = hash64(canon(h));
+  return h;
+}
+
+// ---- Which coefficients an element's calculation reads (superset is safe)
+function factorsUsed(el, F) {
+  const t = el.type, i = normInputs(t, el.inp), u = new Set(), add = (...p) => p.forEach(x => u.add(x));
+  const rebar = () => add('rebar.lapFactor', 'rebar.commercial', 'rebar.tieWirePerX', 'rebar.tieWireMPerKg', 'rebar.allowancePct');
+  const board = b => add(`boards.${b}.w`, `boards.${b}.l`);
+  if (['footing', 'wallfooting', 'column', 'beam', 'slab', 'rcwall', 'stairs'].includes(t)) {
+    rebar(); add(`concrete.${i.cls}.cement`, `concrete.${i.cls}.sand`, `concrete.${i.cls}.gravel`, 'waste.concrete');
+    if ((t === 'footing' || t === 'wallfooting') && i.hook) add('rebar.hook90D');
+    if (t === 'column' || t === 'beam') add('rebar.tieHookD', 'rebar.tieHookMin');
+  } else if (t === 'chbwall' || t === 'chbpart') {
+    rebar(); add('chb.perSqm', 'chb.courseH', `chb.mortar.${i.size}.${i.mcls}`, `chb.mortar.${i.size}.sand`);
+    if (+i.faces > 0) add(`plaster.${i.pcls}`, 'plaster.sandPerCum');
+  } else if (t === 'drywall') {
+    add('partition.studLen', 'partition.trackLen', 'partition.anchorSp', 'partition.screwsPerBoard', 'partition.tapePerSqm', 'partition.compoundPerSqm', 'waste.metal'); board(i.board);
+  } else if (t === 'ceiling') {
+    const C = 'ceiling.';
+    if (i.sys === 'gyp' || i.sys === 'fc') {
+      let b = i.board;
+      if (i.sys === 'gyp' && !/^(GYP|MR)/.test(b)) b = 'GYP9';
+      if (i.sys === 'fc' && !/^FC/.test(b)) b = 'FC45';
+      board(b); add('waste.metal', ...['ccSpacing', 'stockLen', 'wallAngleLen', 'hangerSpacing', 'hangerLen', 'screwsPerBoard', 'rivetsPerFurring'].map(k => C + k));
+      if (/^(GYP|MR)/.test(b)) add(C + 'tapePerSqm', C + 'compoundPerSqm');
+    } else if (i.sys === 'acoustic') add(...['acousticMainSp', 'acousticMainLen', 'acousticTile', 'acousticWallAngle', 'hangerLen'].map(k => C + k));
+    else if (i.sys === 'pvc') add('waste.metal', ...['pvcWidth', 'pvcLength', 'stockLen', 'pvcMoldingLen', 'pvcScrewsPerSqm'].map(k => C + k));
+    else if (i.sys === 'wood') { board('PLY6'); add(C + 'bdftPerM', C + 'nailsKgPerSqm'); }
+  }
+  return u;
+}
+
+// ---- Element-level rules (also used live in the editor)
+function elementChecks(el, F) {
+  const out = [], T = TYPES[el.type];
+  const R = (rule, path, description, evidence, suggestion) => out.push({rule, path, description, evidence, suggestion});
+  const raw = el.inp || {}, i = normInputs(el.type, raw), rel = RELEVANT[el.type] || {};
+  for (const f of T.fields) {
+    if (!f.k || f.t !== 'num') continue;
+    if (rel[f.k] && !rel[f.k](i)) continue;
+    const v = raw[f.k] === undefined ? f.def : raw[f.k], n = Number(v), label = `${f.label}${f.unit ? ' (' + f.unit + ')' : ''}`;
+    if (!Number.isFinite(n) || v === null || v === '') { R('R-DIM-001', f.k, `${label} is not a number.`, {field: f.k, value: String(v)}, 'Enter a number.'); continue; }
+    if (n < 0) { R('R-DIM-002', f.k, `${label} is negative (${n}).`, {field: f.k, value: n}, 'Enter a positive value from the drawing.'); continue; }
+    if (n === 0 && !ALLOW_ZERO.has(f.k)) { R('R-DIM-003', f.k, `${label} is 0, which removes quantities from the estimate.`, {field: f.k, value: n}, 'Enter the value from the drawing.'); continue; }
+    if (n === 0) continue;
+    const L = AUDIT_LIMITS;
+    if (f.unit === 'm') {
+      if (n > L.mMax || (SECTION_KEYS.has(f.k) && n > L.sectionMax)) R('R-UNIT-001', f.k, `${label} = ${n} m is unusually large; it may have been entered in mm or cm.`, {field: f.k, value: n, unit: 'm', limit: SECTION_KEYS.has(f.k) ? L.sectionMax : L.mMax}, 'Check the unit: this field is in metres.');
+      else if (n < L.mMin) R('R-UNIT-001', f.k, `${label} = ${n} m is unusually small.`, {field: f.k, value: n, unit: 'm', limit: L.mMin}, 'Check the unit: this field is in metres.');
+    } else if (f.unit === 'mm') {
+      if (f.k === 'cover' && (n < L.coverMin || n > L.coverMax)) R('R-UNIT-001', f.k, `Cover = ${n} mm is outside ${L.coverMin}–${L.coverMax} mm; it may have been entered in metres or cm.`, {field: f.k, value: n, unit: 'mm', range: [L.coverMin, L.coverMax]}, 'Check the unit: cover is in millimetres.');
+      else if (f.k === 'plt' && (n < L.plasterMin || n > L.plasterMax)) R('R-UNIT-001', f.k, `${label} = ${n} mm is outside ${L.plasterMin}–${L.plasterMax} mm; it may have been entered in cm or metres.`, {field: f.k, value: n, unit: 'mm', range: [L.plasterMin, L.plasterMax]}, 'Check the unit: plaster thickness is in millimetres.');
+      else if (/^s[A-Z]/.test(f.k) && (n < L.spacingMin || n > L.spacingMax)) R('R-UNIT-001', f.k, `${label} = ${n} mm is outside ${L.spacingMin}–${L.spacingMax} mm; it may have been entered in metres.`, {field: f.k, value: n, unit: 'mm', range: [L.spacingMin, L.spacingMax]}, 'Check the unit: spacing is in millimetres.');
+    }
+  }
+  const q = Number(el.qty);
+  if (!(q > 0) || !Number.isInteger(q)) R('R-DIM-004', 'qty', !(q > 0) ? 'Quantity is 0, so this element is not costed.' : `Quantity ${q} is not a whole number; ${Math.round(q)} is used.`, {qty: el.qty, used: Math.max(0, Math.round(q || 0))}, 'Enter the number of identical elements as a whole number.');
+
+  // Geometry: inner dimensions after cover
+  const c = (Number(i.cover) || 0) / 1000;
+  const inner = {column: [['b', i.b], ['h', i.h]], beam: [['b', i.b], ['h', i.h]], footing: [['L', i.L], ['W', i.W]], wallfooting: [['B', i.B], ['L', i.L]], slab: [['Lx', i.Lx], ['Ly', i.Ly]], rcwall: [['L', i.L], ['H', i.H]], stairs: [['W', i.W]]}[el.type] || [];
+  for (const [k, d] of inner) if (d > 0 && d - 2 * c <= 0) R('R-RB-001', k, `Cover ${i.cover} mm on each side is not less than half of ${k} = ${d} m, so the bars have no length (ties would be cut to their hooks only).`, {dimension: k, value: d, cover: i.cover, inner: Math.round((d - 2 * c) * 1000) / 1000}, 'Check the cover and the member size.');
+  const spans = {
+    footing: [['sL', i.W - 2 * c], ['sW', i.L - 2 * c]], wallfooting: [['sT', i.L - 2 * c]], slab: [['sBx', i.Ly - 2 * c], ['sBy', i.Lx - 2 * c]],
+    rcwall: [['sV', i.L - 2 * c], ['sH', i.H - 2 * c]], stairs: [['sM', i.W - 2 * c], ['sD', Math.hypot(i.run, i.rise)]], column: [['sT', i.H]], beam: [['sS', i.L]],
+  }[el.type] || [];
+  for (const [k, w] of spans) if (i[k] > 0 && w > 0 && i[k] / 1000 >= w) R('R-RB-002', k, `Spacing ${i[k]} mm is not smaller than the available width ${Math.round(w * 1000)} mm, so only one bar is counted.`, {field: k, spacing: i[k], width_mm: Math.round(w * 1000)}, 'Check the spacing unit and value.');
+  if ((el.type === 'column' || el.type === 'beam') && i.Lo > 0) {
+    const len = el.type === 'column' ? i.H : i.L;
+    if (2 * i.Lo >= len) R('R-RB-004', 'Lo', `Confined zones (2 × ${i.Lo} m) cover the whole length ${len} m, so the uniform spacing is used instead.`, {Lo: i.Lo, length: len}, 'Reduce the confined zone length or set it to 0.');
+  }
+  if (['chbwall', 'chbpart', 'drywall'].includes(el.type)) {
+    const op = parseOpenings(i.open);
+    if (op.errors.length) R('R-DIM-006', 'open', `Openings "${op.errors.join(', ')}" could not be read and are not deducted.`, {unreadable: op.errors}, 'Write openings as W x H x count, e.g. 0.9x2.1x2.');
+    if (i.L > 0 && i.H > 0 && op.area >= i.L * i.H) R('R-DIM-005', 'open', `Openings (${Math.round(op.area * 100) / 100} m²) are not smaller than the wall (${Math.round(i.L * i.H * 100) / 100} m²), so the net area is 0.`, {openings_m2: Math.round(op.area * 1e4) / 1e4, wall_m2: Math.round(i.L * i.H * 1e4) / 1e4}, 'Check the opening sizes and the wall length/height.');
+  }
+  let r = null;
+  try { r = computeElement(el, F); } catch (e) { R('R-QTY-001', '', 'The calculation failed: ' + e.message, {error: e.message}, 'Check the inputs.'); }
+  if (r && !r.lines.length && !r.bars.length && !out.some(x => RULES[x.rule][0] === 'critical')) R('R-QTY-001', '', 'These inputs produce no material quantities.', {lines: 0, bars: 0}, 'Check the dimensions, spacing and cover.');
+  return out;
+}
+
+// ---- Reconciliation of a BOQ (pure; used by runAudit and tested with tampered input)
+function reconcileChecks(boq, s) {
+  // money tolerance: half a centavo (relative 1e-9 only to absorb floating-point noise on very large totals)
+  const T = boq.totals, near = (a, b) => Math.abs(a - b) <= Math.max(0.005, 1e-9 * Math.abs(b)), r2 = x => Math.round(x * 100) / 100;
+  const failures = [], nonFinite = [];
+  for (const [k, v] of Object.entries(T)) if (!Number.isFinite(v)) nonFinite.push(k + ' total');
+  if (boq.rows.some(r => (r.kind === 'mat' || r.kind === 'lab') && !Number.isFinite(r.amt))) nonFinite.push('BOQ line amount');
+  let sub = 0, lineSum = 0, divSum = 0, printedLines = 0, printedSubs = 0, printedDirect = 0;
+  for (const r of boq.rows) {
+    if (r.kind === 'mat' || r.kind === 'lab') {
+      const exp = r.pct ? r.rate * r.qty / 100 : r.qty * r.rate;
+      if (!near(r.amt, exp)) failures.push(`${r.name}: amount ${r.amt} ≠ qty × rate ${exp}`);
+      sub += r.amt; lineSum += r.amt; printedLines += r2(r.amt);
+    } else if (r.kind === 'sub') {
+      if (!near(r.amt, sub)) failures.push(`${r.text}: subtotal ${r.amt} ≠ sum of lines ${sub}`);
+      if (Math.abs(r2(printedLines) - r2(r.amt)) >= 0.01) printedSubs++;
+      sub = 0; printedLines = 0;
+    }
+  }
+  for (const d of boq.divTotals) { divSum += d.amt; printedDirect += r2(d.amt); }
+  if (!near(divSum, T.direct)) failures.push(`division totals ${divSum} ≠ direct cost ${T.direct}`);
+  if (!near(lineSum, T.direct)) failures.push(`line amounts ${lineSum} ≠ direct cost ${T.direct}`);
+  if (!near(T.ocm, T.direct * s.ocm / 100) || !near(T.profit, T.direct * s.profit / 100) || !near(T.cont, T.direct * s.contingency / 100)) failures.push('markups ≠ direct cost × rate');
+  if (!near(T.sub, T.direct + T.ocm + T.profit + T.cont)) failures.push('subtotal ≠ direct cost + markups');
+  if (!near(T.vat, T.sub * s.vat / 100) || !near(T.grand, T.sub + T.vat)) failures.push('VAT or grand total inconsistent');
+  return {failures: nonFinite.length ? [] : failures, nonFinite, printedSubs, printedDirectDiff: Math.round(Math.abs(r2(printedDirect) - r2(T.direct)) * 100)};
+}
+
+// ---- Project-level audit
+function runAudit(st, {today} = {}) {
+  const F = st.factors, P = st.policy || (st.audit && st.audit.policy) || defaultAuditState().policy, A = st.audit || defaultAuditState();
+  const projectId = (st.meta && st.meta.projectId) || '', revision = (st.meta && st.meta.revision) || 0;
+  const found = [], markOf = id => (st.elements.find(e => e.id === id) || {}).mark;
+  const F_ = (rule, key, description, evidence, suggestion, elementIds = [], paths = []) => {
+    const [severity, title] = RULES[rule];
+    found.push({rule, key, severity, title, description, evidence, suggestion, elementIds, paths});
+  };
+  const levelName = id => (st.levels.find(l => l.id === id) || {}).name || '?';
+  // Element rules
+  for (const el of st.elements) for (const c of elementChecks(el, F))
+    F_(c.rule, el.id + '|' + c.path, `${el.mark} (${TYPES[el.type].name}, ${levelName(el.level)}): ${c.description}`, c.evidence, c.suggestion, [el.id], c.path ? [`elements.${el.id}.inp.${c.path}`] : []);
+
+  const boq = buildBOQ(st), est = boq.est;
+  // Rebar purchasable
+  for (const {level, divs} of est) for (const [dk, d] of Object.entries(divs)) for (const dia of d.bars.keys()) if (!d.rebar.some(o => o.dia === dia)) {
+    const ids = st.elements.filter(e => e.level === level.id && computeElement(e, F).bars.some(b => b.dia === dia && b.div === dk)).map(e => e.id);
+    F_('R-RB-003', `${level.id}|${dk}|${dia}`, `${dia} mm bars on ${level.name} (${DIV_NAME[dk]}) cannot be bought: no commercial length is longer than the ${Math.round(lapLen(dia, F) * 100) / 100} m lap, so they are missing from the BOQ.`,
+      {dia, lap_m: Math.round(lapLen(dia, F) * 1000) / 1000, commercial: st.settings.stock === 'auto' ? F.rebar.commercial : [Number(st.settings.stock)]}, 'Use a longer commercial length or check the lap factor.', ids);
+  }
+  // Prices
+  const matRows = boq.rows.filter(r => r.kind === 'mat'), labRows = boq.rows.filter(r => r.kind === 'lab');
+  const usedMat = [...new Set(matRows.map(r => r.code))], usedLab = [...new Set(labRows.map(r => r.code))];
+  for (const c of usedMat) { const p = st.prices[c]; if (!(Number(p.price) > 0)) F_('R-PRICE-001', c, `${p.name} is in the BOQ with a price of ${p.price}.`, {code: c, price: p.price}, 'Enter the supplier price.', [], ['prices.' + c]); }
+  const sampleM = usedMat.filter(c => st.prices[c].source === 'sample');
+  if (sampleM.length) F_('R-PRICE-002', 'materials', `${sampleM.length} of ${usedMat.length} priced materials use sample prices. Sample prices are placeholders, not market data.`, {codes: sampleM}, 'Enter your supplier prices on the Prices tab.', [], sampleM.map(c => 'prices.' + c));
+  if (today) {
+    const t0 = Date.parse(today), days = Number(P.priceValidityDays) || 0, old = [], undated = [];
+    for (const [c, o, kind] of [...usedMat.map(c => [c, st.prices[c], 'prices']), ...usedLab.map(c => [c, st.labor[c], 'labor'])]) {
+      if (o.source !== 'user') continue;
+      if (!o.updatedAt) { undated.push(`${kind}.${c}`); continue; }
+      const age = Math.floor((t0 - Date.parse(o.updatedAt)) / 86400000);
+      if (days > 0 && age > days) old.push({path: `${kind}.${c}`, updatedAt: o.updatedAt, ageDays: age});
+    }
+    if (old.length) F_('R-PRICE-003', 'expired', `${old.length} price(s) are older than ${days} days.`, {validityDays: days, prices: old}, 'Confirm or update these prices.', [], old.map(o => o.path));
+    if (undated.length) F_('R-PRICE-006', 'undated', `${undated.length} of your price(s) have no recorded date, so their age cannot be checked.`, {paths: undated}, 'Re-enter the price to record today\'s date.', [], undated);
+  }
+  for (const c of usedLab) { const l = st.labor[c]; if (l.mode !== 'pct' && !(Number(l.rate) > 0)) F_('R-PRICE-004', c, `${l.name} has a rate of ${l.rate}.`, {code: c, rate: l.rate}, 'Enter the labor rate, or confirm labor is excluded.', [], ['labor.' + c]); }
+  const sampleL = usedLab.filter(c => st.labor[c].source === 'sample');
+  if (sampleL.length) F_('R-PRICE-005', 'labor', `${sampleL.length} labor rate(s) are sample values.`, {codes: sampleL}, 'Enter your own labor rates on the Prices tab.', [], sampleL.map(c => 'labor.' + c));
+  // Coefficients
+  const FM = st.factorMeta || {}, use = new Map();
+  for (const el of st.elements) if (Number(el.qty) > 0) for (const p of factorsUsed(el, F)) { if (!use.has(p)) use.set(p, []); use.get(p).push(el.id); }
+  const interp = [...use.keys()].filter(p => FM[p] && /interpolated/i.test(FM[p].source || '') && !FM[p].verified);
+  const unver = [...use.keys()].filter(p => FM[p] && !FM[p].verified && !interp.includes(p)).sort();
+  if (interp.length) F_('R-COEF-002', 'interp', `${interp.join(', ')} ${interp.length > 1 ? 'are' : 'is'} interpolated with no cited source and ${interp.length > 1 ? 'are' : 'is'} used by ${new Set(interp.flatMap(p => use.get(p))).size} element(s).`,
+    {coefficients: interp.map(p => ({path: p, source: FM[p].source, note: FM[p].note}))}, 'Replace the value with one from a cited table and record the reference, or use a different CHB size.', [...new Set(interp.flatMap(p => use.get(p)))], interp.map(p => 'factors.' + p));
+  if (unver.length) {
+    found.push({rule: 'R-COEF-001', key: 'unverified', severity: P.unverifiedCoefficients === 'major' ? 'major' : 'critical', title: RULES['R-COEF-001'][1],
+      description: `${unver.length} coefficient(s) used by this estimate are not verified against their source.`,
+      evidence: {coefficients: unver.map(p => ({path: p, source: FM[p].source, ref: FM[p].ref, elements: use.get(p).length}))},
+      suggestion: 'On the Factors tab, check each value against its source, record the table/page and tick Verified.', elementIds: [], paths: unver.map(p => 'factors.' + p)});
+  }
+  // Duplicates
+  const sig = new Map(), marks = new Map();
+  for (const e of st.elements) {
+    const k = canon({type: e.type, level: e.level, inp: normInputs(e.type, e.inp)});
+    if (!sig.has(k)) sig.set(k, []); sig.get(k).push(e.id);
+    const m = String(e.mark).trim().toLowerCase(); if (!marks.has(m)) marks.set(m, []); marks.get(m).push(e.id);
+  }
+  for (const ids of sig.values()) if (ids.length > 1) F_('R-DUP-001', ids.join('|'), `${ids.map(markOf).join(', ')} have the same type, level and inputs.`, {elements: ids.map(markOf)}, 'If they are the same element, delete one; if they are separate, increase the quantity of one instead.', ids);
+  for (const [m, ids] of marks) if (ids.length > 1) F_('R-DUP-002', 'mark|' + m, `Mark "${markOf(ids[0])}" is used by ${ids.length} elements.`, {mark: markOf(ids[0]), elements: ids.length}, 'Give each element its drawing mark.', ids);
+  // Overlaps (upper bounds; depends on how depths/heights were measured)
+  for (const lv of st.levels) {
+    const at = t => st.elements.filter(e => e.level === lv.id && e.type === t && Number(e.qty) > 0);
+    const beams = at('beam'), slabs = at('slab'), cols = at('column'), N = e => normInputs(e.type, e.inp), qn = e => Math.round(Number(e.qty));
+    if (beams.length && slabs.length) {
+      const t = Math.max(...slabs.map(e => N(e).t)), bound = beams.reduce((s, e) => s + N(e).b * N(e).L * Math.min(t, N(e).h) * qn(e), 0);
+      F_('R-OVL-001', lv.id, `${lv.name}: beams and slabs are both costed at full depth. If the beam depth includes the slab, up to ${Math.round(bound * 1000) / 1000} m³ of concrete is counted twice.`,
+        {level: lv.name, maxSlabThickness_m: t, beams: beams.map(e => e.mark), overlapUpperBound_m3: Math.round(bound * 1e6) / 1e6}, 'If beam depths include the slab, enter the depth below the slab, or accept this as a known allowance.', beams.concat(slabs).map(e => e.id));
+    }
+    if (beams.length && cols.length) {
+      const hb = Math.max(...beams.map(e => N(e).h)), bound = cols.reduce((s, e) => s + N(e).b * N(e).h * hb * qn(e), 0);
+      F_('R-OVL-002', lv.id, `${lv.name}: if column heights run through the beams, up to ${Math.round(bound * 1000) / 1000} m³ of beam–column joint concrete is counted twice.`,
+        {level: lv.name, maxBeamDepth_m: hb, columns: cols.map(e => e.mark), overlapUpperBound_m3: Math.round(bound * 1e6) / 1e6}, 'Use clear heights for columns, or accept this as a known allowance.', beams.concat(cols).map(e => e.id));
+    }
+  }
+  // Reconciliation
+  const T = boq.totals, s = st.settings, rc = reconcileChecks(boq, s);
+  for (const k of rc.nonFinite) F_('R-REC-003', 'total|' + k, `The ${k} is not a finite number.`, {item: k}, 'Check prices and rates for empty or invalid values.');
+  if (rc.failures.length) F_('R-REC-001', 'reconcile', `${rc.failures.length} reconciliation check(s) failed.`, {failures: rc.failures.slice(0, 20)}, 'This indicates a calculation defect. Do not use this estimate; report it.');
+  if (rc.printedSubs || rc.printedDirectDiff) F_('R-REC-002', 'rounding', `${rc.printedSubs} printed subtotal(s) differ from the sum of their printed lines by at least one centavo because amounts are rounded only for display.`, {subtotals: rc.printedSubs, directDifferenceCentavos: rc.printedDirectDiff}, 'Expected with fractional quantities; state "amounts rounded for display" on the BOQ, or round prices to centavos.');
+  // Markups & VAT
+  for (const k of ['ocm', 'profit', 'contingency', 'vat']) {
+    const v = s[k];
+    if (!Number.isFinite(Number(v)) || v < 0 || v > 100) F_('R-MKP-001', k, `${k.toUpperCase()} is ${v}%.`, {setting: k, value: v}, 'Enter a percentage between 0 and 100.', [], ['settings.' + k]);
+    else if (k === 'vat' ? !(v === 12 || v === 0) : v > AUDIT_LIMITS.markupMax) F_('R-MKP-002', k, k === 'vat' ? `VAT is ${v}%; the Philippine VAT rate is 12% (0% only for exempt or zero-rated work).` : `${k.toUpperCase()} is ${v}%, above ${AUDIT_LIMITS.markupMax}%.`, {setting: k, value: v}, 'Confirm the percentage.', [], ['settings.' + k]);
+  }
+  // Takeoff completeness
+  const TK = st.takeoff || {};
+  for (const lv of st.levels) {
+    const els = st.elements.filter(e => e.level === lv.id), reg = TK[lv.id] || {};
+    if (!els.length) F_('R-TO-001', lv.id, `${lv.name} has no elements.`, {level: lv.name}, 'Take off this level, or delete it if it is not in the drawings.');
+    const pending = [];
+    for (const [k, name, types] of TAKEOFF_SCOPES) {
+      const n = els.filter(e => types.includes(e.type)).length, stt = reg[k] || 'pending';
+      if (stt === 'complete' && !n) F_('R-TO-003', lv.id + '|' + k, `${lv.name}: ${name} is marked complete but has no elements.`, {level: lv.name, scope: name}, 'Add the elements, or mark the scope Not applicable.');
+      if (stt === 'na' && n) F_('R-TO-004', lv.id + '|' + k, `${lv.name}: ${name} is marked not applicable but has ${n} element(s).`, {level: lv.name, scope: name, elements: n}, 'Change the status, or remove the elements.');
+      if (stt === 'pending' || stt === 'progress') pending.push(`${name} (${stt === 'pending' ? 'not started' : 'in progress'})`);
+    }
+    if (pending.length) F_('R-TO-002', lv.id, `${lv.name}: ${pending.length} of ${TAKEOFF_SCOPES.length} scopes are not marked Complete or Not applicable.`, {level: lv.name, scopes: pending}, 'Mark each scope in the takeoff register as you finish it.');
+  }
+  if (st.quarantine && st.quarantine.elements && st.quarantine.elements.length) F_('R-QUA-001', 'q', `${st.quarantine.elements.length} element(s) from a loaded file could not be used and are not costed.`, {elements: st.quarantine.elements.map(e => (e && e.mark) || '?')}, 'Re-enter them with a supported element type, then remove them from quarantine.');
+  // Staleness
+  const H = inputHashes(st), changed = old => Object.keys(H).filter(k => k !== 'all' && old && old[k] !== H[k]);
+  if (A.approval && A.approval.hashes && A.approval.hashes.all !== H.all) F_('R-STALE-001', 'approval', `The approved estimate (approved ${A.approval.at} by ${A.approval.by}) has changed: ${changed(A.approval.hashes).join(', ')}.`,
+    {approvedAt: A.approval.at, changedParts: changed(A.approval.hashes), approvedGrand: A.approval.totals && A.approval.totals.grand, currentGrand: T.grand}, 'Review the changes and approve again, or restore the approved inputs.');
+  if (A.lastExport && A.lastExport.hashes && A.lastExport.hashes.all !== H.all) F_('R-STALE-002', 'export', `The last ${A.lastExport.kind} export (${A.lastExport.at}) no longer matches the estimate: ${changed(A.lastExport.hashes).join(', ')} changed.`, {exportedAt: A.lastExport.at, changedParts: changed(A.lastExport.hashes)}, 'Export again before sending.');
+
+  // Identity, status and history
+  const findings = found.map(f => {
+    const id = 'F-' + hash64(f.rule + '|' + f.key);
+    const evHash = hash64(canon(f.evidence));
+    const ack = A.acks && A.acks[id];
+    let status = 'open', history = ack && Array.isArray(ack.history) ? ack.history : [];
+    if (ack && ack.status === 'acknowledged' && f.severity !== 'critical') status = ack.evidenceHash === evHash ? 'acknowledged' : 'reopened';
+    return {id, ruleId: f.rule, severity: f.severity, title: f.title, description: f.description,
+      refs: {projectId, revision, elementIds: f.elementIds, marks: f.elementIds.map(markOf), paths: f.paths},
+      evidence: f.evidence, evidenceHash: evHash, suggestion: f.suggestion, status, history};
+  }).sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || a.ruleId.localeCompare(b.ruleId) || a.id.localeCompare(b.id));
+  const open = findings.filter(f => f.status !== 'acknowledged');
+  const counts = Object.fromEntries(Object.keys(SEV_ORDER).map(k => [k, findings.filter(f => f.severity === k).length]));
+  const openCounts = Object.fromEntries(Object.keys(SEV_ORDER).map(k => [k, open.filter(f => f.severity === k).length]));
+  return {auditVersion: AUDIT_VERSION, engineVersion: st.engineVersion || '1.0.0', findings, counts, openCounts,
+    blocking: findings.filter(f => f.severity === 'critical'), hashes: H, totals: T};
+}
+
+// Export watermark decision (pure)
+function exportBanner(st, audit) {
+  const A = st.audit || defaultAuditState(), pol = A.policy.exportPolicy, appr = A.approval;
+  const approvedClean = appr && appr.hashes && appr.hashes.all === audit.hashes.all;
+  const oc = audit.openCounts, serious = oc.critical + oc.major;
+  const issues = `${oc.critical} critical, ${oc.major} major open finding(s)`;
+  const block = pol === 'block-critical' && audit.counts.critical > 0 ? `Export refused by policy: ${audit.counts.critical} critical finding(s) must be resolved first.` : null;
+  let watermark = null;
+  if (pol === 'watermark-issues-only') { if (serious) watermark = `DRAFT – ${issues}`; }
+  else if (!approvedClean) watermark = appr ? `DRAFT – CHANGED SINCE APPROVAL (${appr.at}) – ${issues}` : `DRAFT – NOT APPROVED – ${issues}`;
+  const header = approvedClean ? `APPROVED ${appr.at} by ${appr.by} (audit ${appr.auditVersion}, engine ${appr.engineVersion})` : null;
+  return {block, watermark, header};
+}
+</script>
+
+<!-- ===================================================================== -->
 <!-- APP: state, migration, storage, dashboard, screens, export            -->
 <!-- ===================================================================== -->
 <script id="app">
@@ -837,6 +1202,7 @@ const APP_VERSION = '1.1.0', ENGINE_VERSION = '1.0.0', SCHEMA_VERSION = 2;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const SRC_FAJARDO = 'Max B. Fajardo Jr., Simplified Construction Estimate';
+const USER_KEY = 'estimator.user';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -880,7 +1246,7 @@ function defaultState() {
   const t = nowIso();
   return {
     version: SCHEMA_VERSION, engineVersion: ENGINE_VERSION,
-    meta: {createdAt: t, updatedAt: t, appVersion: APP_VERSION, migratedFrom: null, migrationReport: [], revision: 0, status: 'draft', fileSavedAt: null, changesSinceFile: 0},
+    meta: {projectId: uid(), createdAt: t, updatedAt: t, appVersion: APP_VERSION, migratedFrom: null, migrationReport: [], revision: 0, status: 'draft', fileSavedAt: null, changesSinceFile: 0},
     project: {name: 'New project', location: '', owner: '', date: localDate(), notes: ''},
     settings: {stock: 'auto', ocm: 8, profit: 10, contingency: 5, vat: 12},
     levels: [{id: uid(), name: 'Ground floor', h: 3.0}],
@@ -890,6 +1256,8 @@ function defaultState() {
     factors: defaultFactors(),
     factorMeta: defaultFactorMeta(),
     quarantine: {elements: [], invalidValues: [], unknownKeys: {}},
+    audit: defaultAuditState(),
+    takeoff: {},
   };
 }
 
@@ -907,7 +1275,7 @@ function migrate(raw) {
   const from = isNum(raw.version) ? Number(raw.version) : 1;
   if (from > SCHEMA_VERSION) R('warn', 'NEWER_VERSION', `Saved by a newer app (schema ${from}). Unknown parts are kept in quarantine.`);
 
-  const KNOWN_ROOT = ['version', 'engineVersion', 'meta', 'project', 'settings', 'levels', 'elements', 'prices', 'labor', 'factors', 'factorMeta', 'quarantine'];
+  const KNOWN_ROOT = ['version', 'engineVersion', 'meta', 'project', 'settings', 'levels', 'elements', 'prices', 'labor', 'factors', 'factorMeta', 'quarantine', 'audit', 'takeoff'];
   for (const k of Object.keys(raw)) if (!KNOWN_ROOT.includes(k)) unknown('root', k, raw[k]);
 
   if (isObj(raw.project)) for (const k of ['name', 'location', 'owner', 'date', 'notes']) if (raw.project[k] !== undefined) st.project[k] = str(raw.project[k]);
@@ -1021,6 +1389,27 @@ function migrate(raw) {
     for (const k of ['createdAt', 'updatedAt', 'fileSavedAt', 'status']) if (typeof m[k] === 'string') st.meta[k] = m[k];
     for (const k of ['revision', 'changesSinceFile', 'migratedFrom']) if (isNum(m[k])) st.meta[k] = Number(m[k]);
     if (Array.isArray(m.migrationReport)) st.meta.migrationReport = clone(m.migrationReport);
+    if (typeof m.projectId === 'string' && ID_RE.test(m.projectId)) st.meta.projectId = m.projectId;
+  }
+  if (isObj(raw.audit)) {
+    const a = raw.audit, pol = isObj(a.policy) ? a.policy : {}, P = st.audit.policy;
+    if (pol.priceValidityDays !== undefined) { if (isNum(pol.priceValidityDays) && Number(pol.priceValidityDays) >= 0) P.priceValidityDays = Number(pol.priceValidityDays); else bad('audit.policy.priceValidityDays', pol.priceValidityDays, P.priceValidityDays); }
+    if (pol.unverifiedCoefficients !== undefined) { if (pol.unverifiedCoefficients === 'critical' || pol.unverifiedCoefficients === 'major') P.unverifiedCoefficients = pol.unverifiedCoefficients; else bad('audit.policy.unverifiedCoefficients', pol.unverifiedCoefficients, P.unverifiedCoefficients); }
+    if (pol.exportPolicy !== undefined) { if (EXPORT_POLICIES.some(([k]) => k === pol.exportPolicy)) P.exportPolicy = pol.exportPolicy; else bad('audit.policy.exportPolicy', pol.exportPolicy, P.exportPolicy); }
+    if (isObj(a.acks)) for (const [id, v] of Object.entries(a.acks)) {
+      if (!/^F-[0-9a-f]{16}$/.test(id) || !isObj(v)) { bad('audit.acks.' + id, v, 'removed'); continue; }
+      st.audit.acks[id] = {status: v.status === 'acknowledged' ? 'acknowledged' : 'open', evidenceHash: str(v.evidenceHash),
+        history: Array.isArray(v.history) ? v.history.filter(isObj).map(h => ({at: str(h.at), by: str(h.by), action: str(h.action), note: str(h.note)})) : []};
+    }
+    if (isObj(a.approval)) st.audit.approval = clone(a.approval);
+    if (Array.isArray(a.approvalLog)) st.audit.approvalLog = clone(a.approvalLog).filter(isObj);
+    if (isObj(a.lastExport)) st.audit.lastExport = clone(a.lastExport);
+  }
+  if (isObj(raw.takeoff)) for (const [lid, reg] of Object.entries(raw.takeoff)) {
+    const nid = idMap.get(lid);
+    if (!nid || !isObj(reg)) { if (!BAD_KEYS.has(lid)) unknown('takeoff', lid, reg); continue; }
+    st.takeoff[nid] = {};
+    for (const [k, v] of Object.entries(reg)) if (TAKEOFF_SCOPES.some(x => x[0] === k) && TAKEOFF_STATUS.some(x => x[0] === v)) st.takeoff[nid][k] = v; else bad(`takeoff.${lid}.${k}`, v, 'pending');
   }
   if (typeof raw.engineVersion === 'string') st.engineVersion = raw.engineVersion;
   if (from < SCHEMA_VERSION) { st.meta.migratedFrom = from; st.meta.migrationReport = clone(report); R('info', 'MIGRATED', `Project upgraded from schema v${from} to v${SCHEMA_VERSION}. Quantities and costs are unchanged.`); }
@@ -1044,7 +1433,10 @@ function writeBackup(text, reason) {
     return k;
   } catch (e) { return null; }
 }
-let S;
+// Audit results are cached until the next persist(); every change to S goes through persist().
+let S, AUD = null;
+const getAud = () => AUD || (AUD = runAudit(S, {today: localDate()}));
+const userName = () => (lsGet(USER_KEY) || '').trim();
 (function boot() {
   let text = null, raw = null;
   try { text = localStorage.getItem(KEY); } catch (e) { store.ok = false; store.error = 'Browser storage is not available: ' + e.message; }
@@ -1067,6 +1459,7 @@ let S;
   S = state;
 })();
 function persist({countChange = true} = {}) {
+  AUD = null;
   S.meta.updatedAt = nowIso();
   if (countChange) S.meta.changesSinceFile = (S.meta.changesSinceFile || 0) + 1;
   if (store.blocked) { store.ok = false; store.error = 'Autosave paused to protect unreadable saved data. Download it from Project → Local backups, then resume.'; renderStatus(); return false; }
@@ -1097,27 +1490,14 @@ function dashData() {
   return {b, divs: DIVS.map(([k]) => divs[k]).filter(d => d.items), perLevel: [...lvl], rebarKg, rebarNetKg, rebarPcs, purchasedM, netM, conc, form, chb, ceil, part, missingRebar};
 }
 
-// Deterministic checks shown in "Needs attention" (the full rule engine is Phase 2)
-function attention(dd) {
+// "Needs attention": storage problems plus the auditor's open findings
+function attention() {
   const out = [], A = (sev, title, detail, act, actLabel) => out.push({sev, title, detail, act, actLabel});
   if (store.ok === false) A('critical', 'Changes are not being saved in this browser', store.error, 'saveFile', 'Save file');
   for (const r of store.report.filter(r => r.level === 'critical')) A('critical', 'Saved data could not be read', r.message, 'tab:project', 'Backups');
-  if (dd.missingRebar.length) A('critical', 'Rebar missing from the BOQ', `No commercial length is longer than the lap for: ${dd.missingRebar.join(', ')}. Use a longer bar length or check the lap factor.`, 'tab:project', 'Settings');
-  if (S.quarantine.elements.length) A('warning', `${S.quarantine.elements.length} element(s) kept in quarantine`, 'Unknown or invalid elements from a loaded file are kept but not costed.', 'tab:project', 'Review');
   const warns = store.report.filter(r => r.level === 'warn');
-  if (warns.length) A('warning', `${warns.length} issue(s) found when loading the project`, warns.slice(0, 2).map(r => r.message).join(' '), 'tab:project', 'Details');
-  const used = new Set(dd.b.rows.filter(r => r.kind === 'mat').map(r => r.code));
-  const sample = [...used].filter(c => S.prices[c].source === 'sample');
-  if (sample.length) A('warning', `${sample.length} of ${used.size} priced materials use sample prices`, 'Enter your supplier prices before using the totals.', 'tab:prices', 'Prices');
-  const usedLab = new Set(dd.b.rows.filter(r => r.kind === 'lab').map(r => r.code));
-  const sampleLab = [...usedLab].filter(c => S.labor[c].source === 'sample');
-  if (sampleLab.length) A('warning', `${sampleLab.length} labor rate(s) are sample values`, 'Enter your own labor rates.', 'tab:prices', 'Labor');
-  const fm = Object.values(S.factorMeta), unv = fm.filter(m => !m.verified).length;
-  if (unv) A('warning', `${unv} of ${fm.length} estimating factors are not verified`, `Concrete, mortar and plaster factors are designated as ${SRC_FAJARDO}; record the table/page and tick Verified.`, 'tab:factors', 'Factors');
-  const empty = S.elements.filter(e => { const r = computeElement(e, S.factors); return !r.lines.length && !r.bars.length; });
-  if (empty.length) A('warning', `${empty.length} element(s) produce no quantities`, 'Check dimensions of ' + empty.slice(0, 6).map(e => e.mark).join(', ') + '.', 'tab:elements', 'Elements');
-  const zero = S.elements.filter(e => !(Number(e.qty) > 0));
-  if (zero.length) A('warning', `${zero.length} element(s) have quantity 0`, zero.slice(0, 6).map(e => e.mark).join(', ') + ' are not costed.', 'tab:elements', 'Elements');
+  if (warns.length) A('major', `${warns.length} issue(s) found when loading the project`, warns.slice(0, 2).map(r => r.message).join(' '), 'tab:project', 'Details');
+  for (const f of getAud().findings.filter(f => f.status !== 'acknowledged' && f.severity !== 'info').slice(0, 6)) A(f.severity, f.title, f.description, 'tab:audit', 'Review');
   if ((S.meta.changesSinceFile || 0) > 0) A('info', `${S.meta.changesSinceFile} change(s) not yet saved to a project file`, S.meta.fileSavedAt ? `Last file save ${new Date(S.meta.fileSavedAt).toLocaleString('en-PH')}.` : 'This project has never been saved to a file.', 'saveFile', 'Save file');
   return out;
 }
@@ -1138,6 +1518,7 @@ const IC = {
   layers: '<path d="m12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
   wall: '<path d="M3 5h18v14H3zM3 12h18M9 5v7M15 12v7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
 };
@@ -1145,7 +1526,7 @@ const icon = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const typeDiv = t => TYPES[t].div || 'REBAR';
 
 // ---- Navigation
-const TABS = [['dashboard', 'Dashboard', 'dash'], ['elements', 'Elements', 'list'], ['rebar', 'Rebar schedule', 'bars'], ['boq', 'BOQ & Cost', 'boq'],
+const TABS = [['dashboard', 'Dashboard', 'dash'], ['elements', 'Elements', 'list'], ['rebar', 'Rebar schedule', 'bars'], ['boq', 'BOQ & Cost', 'boq'], ['audit', 'Audit', 'shield'],
   ['prices', 'Prices', 'tag'], ['factors', 'Factors', 'sliders'], ['project', 'Project & data', 'folder'], ['selftest', 'Self-test', 'check']];
 const VALID_TABS = new Set(TABS.map(t => t[0]));
 let cur = 'dashboard', levelFilter = 'all', typeFilter = 'all', draft = null, focusDiv = null;
@@ -1191,9 +1572,45 @@ const App = {
   delEl(id) { const e = S.elements.find(x => x.id === id); if (e && confirm(`Delete ${e.mark}?`)) { S.elements = S.elements.filter(x => x.id !== id); persist(); render(); } },
   resetPrices() { if (confirm('Reset all material and labor prices to the sample defaults?')) { const d = defaultState(); S.prices = d.prices; S.labor = d.labor; persist(); render(); } },
   resetFactors() { if (confirm('Reset all factors and their provenance to defaults?')) { S.factors = defaultFactors(); S.factorMeta = defaultFactorMeta(); persist(); render(); } },
-  exportXls() { download(new Blob([boqHtmlTable(true)], {type: 'application/vnd.ms-excel'}), fileBase() + ' BOQ.xls'); },
-  exportCsv() { download(new Blob(['﻿' + boqCsv()], {type: 'text/csv'}), fileBase() + ' BOQ.csv'); },
-  print() { if (cur !== 'boq') App.tab('boq'); setTimeout(() => window.print(), 50); },
+  exportXls() { const g = exportGate(); if (!g) return; download(new Blob([xlsExportText(g.b)], {type: 'application/vnd.ms-excel'}), fileBase() + ' BOQ.xls'); recordExport('Excel', g); },
+  exportCsv() { const g = exportGate(); if (!g) return; download(new Blob(['\ufeff' + csvExportText(g.b)], {type: 'text/csv'}), fileBase() + ' BOQ.csv'); recordExport('CSV', g); },
+  print() {
+    const g = exportGate(); if (!g) return;
+    if (cur !== 'boq') App.tab('boq');
+    recordExport('print', g); applyPrintMarks(g.b);   // marks after the re-render so they are not wiped
+    setTimeout(() => window.print(), 50);
+  },
+  ack(id) {
+    const f = getAud().findings.find(x => x.id === id); if (!f) return;
+    if (f.severity === 'critical') return alert('Critical findings cannot be acknowledged. They must be resolved before approval.');
+    const by = userName(); if (!by) return alert('Enter your name in the Approval panel on the Audit tab first.');
+    const note = prompt(`Acknowledge ${f.ruleId} – ${f.title}\n\nWhy is this acceptable? (recorded with your name)`);
+    if (note === null) return; if (!note.trim()) return alert('A reason is required.');
+    const a = S.audit.acks[id] || {history: []};
+    a.status = 'acknowledged'; a.evidenceHash = f.evidenceHash; a.history = [...(a.history || []), {at: nowIso(), by, action: 'acknowledged', note: note.trim()}];
+    S.audit.acks[id] = a; persist(); render();
+  },
+  reopen(id) {
+    const a = S.audit.acks[id]; if (!a) return;
+    a.status = 'open'; a.history.push({at: nowIso(), by: userName() || '(no name)', action: 'reopened', note: ''}); persist(); render();
+  },
+  approve() {
+    const au = runAudit(S, {today: localDate()}), by = userName();
+    if (au.blocking.length) return alert(`Approval is blocked by ${au.blocking.length} critical finding(s). Resolve them first.`);
+    if (!by) return alert('Enter your name in the Approval panel first.');
+    if (!confirm(`Approve this estimate as ${by}?\n\nTotal project cost ${peso(au.totals.grand)}.\n${au.openCounts.major} major and ${au.openCounts.minor} minor finding(s) remain open and are recorded with the approval.`)) return;
+    const rec = {at: nowIso(), by, hashes: au.hashes, totals: {grand: au.totals.grand, direct: au.totals.direct}, auditVersion: AUDIT_VERSION, engineVersion: S.engineVersion,
+      openFindings: au.findings.filter(f => f.status !== 'acknowledged').map(f => ({id: f.id, ruleId: f.ruleId, severity: f.severity})),
+      acknowledged: au.findings.filter(f => f.status === 'acknowledged').map(f => ({id: f.id, ruleId: f.ruleId}))};
+    S.audit.approval = rec; S.audit.approvalLog.push({action: 'approved', at: rec.at, by, grand: rec.totals.grand});
+    S.meta.status = 'approved'; persist(); render();
+  },
+  revokeApproval() {
+    if (!S.audit.approval) return;
+    const note = prompt('Reason for revoking the approval?'); if (note === null) return;
+    S.audit.approvalLog.push({action: 'revoked', at: nowIso(), by: userName() || '(no name)', note});
+    S.audit.approval = null; S.meta.status = 'draft'; persist(); render();
+  },
   toggleTheme() { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(THEME_KEY, t); } catch (e) {} renderStatus(); },
   restoreBackup(k) {
     const text = lsGet(k); if (text === null) return alert('That backup no longer exists.');
@@ -1217,6 +1634,31 @@ function download(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
+// Exports go through the policy gate; the frozen boqCsv()/boqHtmlTable() bodies are unchanged
+function exportGate() {
+  const au = runAudit(S, {today: localDate()}), b = exportBanner(S, au);
+  if (b.block) { alert(b.block); return null; }
+  return {au, b};
+}
+function recordExport(kind, g) { S.audit.lastExport = {at: nowIso(), kind, hashes: g.au.hashes, watermark: g.b.watermark}; persist({countChange: false}); render(); }
+function csvExportText(b) {
+  const q = v => `"${String(v).replace(/"/g, '""')}"`, pre = [];
+  if (b.watermark) pre.push([b.watermark], []);
+  if (b.header) pre.push([b.header], []);
+  return (pre.length ? pre.map(r => r.map(q).join(',')).join('\r\n') + '\r\n' : '') + boqCsv();
+}
+function xlsExportText(b) {
+  const rows = [b.watermark && `<tr><td colspan="6" style="color:#c62828;font-weight:bold;font-size:14pt;border:2pt solid #c62828">${esc(b.watermark)}</td></tr>`,
+    b.header && `<tr><td colspan="6" style="color:#1d8a4e;font-weight:bold">${esc(b.header)}</td></tr>`].filter(Boolean).join('');
+  const x = boqHtmlTable(true);
+  return rows ? x.replace('<table>', '<table>' + rows) : x;
+}
+function applyPrintMarks(b) {
+  if (b.watermark) document.body.setAttribute('data-watermark', b.watermark); else document.body.removeAttribute('data-watermark');
+  const w = document.getElementById('wmBanner'), o = document.getElementById('okBanner');
+  if (w) w.textContent = b.watermark || ''; if (o) o.textContent = b.header || '';
+}
+window.addEventListener('beforeprint', () => applyPrintMarks(exportBanner(S, runAudit(S, {today: localDate()}))));
 document.getElementById('fileIn').addEventListener('change', ev => {
   const f = ev.target.files[0]; if (!f) return;
   const r = new FileReader();
@@ -1266,7 +1708,15 @@ document.addEventListener('change', ev => {
       m.verified = false; m.note = (m.note ? m.note + ' ' : '') + `Value changed by user on ${today}.`;
     } else if (field === 'ref') m.ref = t.value;
     else if (field === 'verified') m.verified = t.checked;
-  } else return;
+  } else if (kind === 'policy' && hasOwn(S.audit.policy, key)) {
+    if (key === 'priceValidityDays') S.audit.policy[key] = Math.max(0, Math.round(num()));
+    else if (key === 'unverifiedCoefficients') S.audit.policy[key] = t.value === 'major' ? 'major' : 'critical';
+    else if (key === 'exportPolicy' && EXPORT_POLICIES.some(([k]) => k === t.value)) S.audit.policy[key] = t.value;
+  } else if (kind === 'takeoff') {
+    if (!S.levels.some(l => l.id === key) || !TAKEOFF_SCOPES.some(x => x[0] === field)) return;
+    (S.takeoff[key] = S.takeoff[key] || {})[field] = TAKEOFF_STATUS.some(x => x[0] === t.value) ? t.value : 'pending';
+  } else if (kind === 'user') { try { localStorage.setItem(USER_KEY, t.value.trim()); } catch (e) {} render(); return; }
+  else return;
   persist(); render();
 });
 
@@ -1280,7 +1730,10 @@ function renderStatus() {
   nameEl.textContent = S.project.name || 'Untitled project';
   document.getElementById('projSub').textContent = [S.project.location, S.project.owner, S.project.date].filter(Boolean).join(' · ');
   const n = S.meta.changesSinceFile || 0;
-  document.getElementById('revChip').innerHTML = `<span class="chip" title="Revision control (snapshots, review, approval) is added in Phase 5. This is the working draft.">Rev ${esc(S.meta.revision)} · ${esc(S.meta.status === 'draft' ? 'Working draft' : S.meta.status)}</span>`;
+  const appr = S.audit.approval, stale = appr && appr.hashes && appr.hashes.all !== getAud().hashes.all;
+  document.getElementById('revChip').innerHTML = appr
+    ? `<span class="chip ${stale ? 'warn' : 'good'}" title="Approved ${esc(appr.at)} by ${esc(appr.by)}. Full revision control is added in Phase 5.">Rev ${esc(S.meta.revision)} · ${stale ? 'Approved – changed since' : 'Approved'}</span>`
+    : `<span class="chip" title="Revision control (snapshots, review) is added in Phase 5. This is the working draft.">Rev ${esc(S.meta.revision)} · Working draft</span>`;
   let html;
   if (store.ok === false) html = `<span class="chip bad" title="${esc(store.error)}"><span class="dot"></span>Not saved</span>`;
   else if (store.at) html = `<span class="chip good" title="Autosaved in this browser"><span class="dot"></span>Saved ${esc(clock(store.at))}</span>`;
@@ -1293,9 +1746,9 @@ function renderStatus() {
 function render() {
   renderStatus();
   document.getElementById('nav').innerHTML = TABS.filter(([k]) => k !== 'selftest').map(([k, n, ic]) =>
-    `<button data-act="tab:${k}" ${k === cur ? 'aria-current="page"' : ''}>${icon(ic)}<span>${esc(n)}</span>${k === 'elements' ? `<span class="count">${S.elements.length}</span>` : ''}</button>`).join('');
+    `<button data-act="tab:${k}" ${k === cur ? 'aria-current="page"' : ''}>${icon(ic)}<span>${esc(n)}</span>${k === 'elements' ? `<span class="count">${S.elements.length}</span>` : k === 'audit' && getAud().counts.critical ? `<span class="count" style="color:var(--bad)">${getAud().counts.critical}</span>` : ''}</button>`).join('');
   document.getElementById('sideFoot').innerHTML = `<a href="#" data-act="tab:selftest">Self-test</a> · v${APP_VERSION} · engine ${esc(S.engineVersion)}`;
-  const fn = {dashboard: vDashboard, project: vProject, elements: vElements, rebar: vRebar, boq: vBOQ, prices: vPrices, factors: vFactors, selftest: vSelfTest}[cur] || vDashboard;
+  const fn = {dashboard: vDashboard, audit: vAudit, project: vProject, elements: vElements, rebar: vRebar, boq: vBOQ, prices: vPrices, factors: vFactors, selftest: vSelfTest}[cur] || vDashboard;
   document.getElementById('view').innerHTML = fn();
   if (cur === 'boq' && focusDiv) { const el = document.getElementById('div-' + focusDiv); if (el) { el.open = true; el.scrollIntoView({block: 'start'}); } focusDiv = null; }
 }
@@ -1303,7 +1756,7 @@ window.addEventListener('beforeprint', () => document.querySelectorAll('details.
 
 // ---- Dashboard
 function vDashboard() {
-  const dd = dashData(), T = dd.b.totals, att = attention(dd);
+  const dd = dashData(), T = dd.b.totals, att = attention(), au = getAud();
   const kpi = (id, c, ic, lbl, val, hint, hero) => `<div class="card kpi ${hero ? 'hero' : ''}" style="--c:${c}" data-kpi="${id}"><div class="lbl"><span class="ico">${icon(ic)}</span>${esc(lbl)}</div><div class="val">${val}</div><div class="hint">${hint}</div></div>`;
   const quick = `<div class="qa">
       ${['column', 'beam', 'slab', 'footing', 'chbwall', 'ceiling'].map(t => `<button class="btn" data-act="addElBtn" data-arg="${t}"><span style="width:14px;height:14px;display:inline-flex">${icon('plus')}</span>${esc(TYPES[t].name.replace(/ \(.*\)/, ''))}</button>`).join('')}
@@ -1350,7 +1803,8 @@ function vDashboard() {
         ${dd.perLevel.length > 1 ? `<h3>By level</h3><div class="bars">${dd.perLevel.map(([n, a]) => `<div class="bar-row" style="--c:var(--accent)"><span class="nm">${esc(n)}</span><span class="track"><span class="fill" style="display:block;width:${(a / lvMax * 100).toFixed(2)}%"></span></span><span class="v">${esc(peso(a))}<small>${(T.direct ? a / T.direct * 100 : 0).toFixed(1)}%</small></span></div>`).join('')}</div>` : ''}
       </div>
       <div class="card"><div class="row between"><h2 style="margin:0">Needs attention</h2><span class="pill ${att.some(a => a.sev === 'critical') ? 'bad' : att.length ? 'warn' : 'good'}">${att.length ? att.length + ' item' + (att.length > 1 ? 's' : '') : 'All clear'}</span></div>
-        <div style="margin-top:12px">${att.length ? attHtml(att) : '<p class="muted">No issues found by the Phase 1 checks.</p>'}</div></div>
+        <div style="margin-top:12px">${att.length ? attHtml(att) : '<p class="muted">No open findings.</p>'}</div>
+        <div class="row between" style="margin-top:10px"><span class="muted" style="font-size:12px">Audit: ${au.counts.critical} critical · ${au.counts.major} major · ${au.counts.minor} minor · ${au.counts.info} info</span><button class="btn sm" data-act="tab:audit">Open audit</button></div></div>
     </div>
     <div><h2 style="font-size:15px;margin:4px 0 10px">BOQ divisions</h2><div class="g-div">
       ${dd.divs.map(d => `<button class="card divcard" style="--c:var(--d-${d.key})" data-act="goDiv" data-arg="${d.key}">
@@ -1368,7 +1822,7 @@ function vDashboard() {
   </div>`;
 }
 function attHtml(att) {
-  const label = {critical: '✕ Critical', warning: '▲ Warning', info: '● Info'};
+  const label = {critical: '✕ Critical', major: '▲ Major', minor: '● Minor', info: '● Info'};
   return `<div class="att">${att.map(a => `<div class="att-item"><span class="sev ${a.sev}">${label[a.sev]}</span><div><div>${esc(a.title)}</div><div class="d">${esc(a.detail)}</div></div>${a.act ? `<button class="btn sm" data-act="${esc(a.act)}">${esc(a.actLabel)}</button>` : ''}</div>`).join('')}</div>`;
 }
 
@@ -1437,8 +1891,9 @@ function vElements() {
   const rows = list.map(e => {
     let r; try { r = computeElement(e, S.factors); } catch (err) { r = {info: [['Error', err.message]], lines: [], bars: []}; }
     const key = r.info.slice(0, 3).map(([a, b]) => `<span class="muted">${esc(a)}:</span> ${esc(b)}`).join(' · ');
-    const none = !r.lines.length && !r.bars.length;
-    return `<tr><td><b>${esc(e.mark)}</b></td><td><span class="tchip" style="--c:var(--d-${typeDiv(e.type)})">${esc(TYPES[e.type].name)}</span></td><td>${esc(lvName(e.level))}</td><td class="n">${esc(e.qty)}</td><td>${none ? '<span class="pill warn">No quantities – check inputs</span> ' : ''}${key}</td>
+    const fs = getAud().findings.filter(f => f.status !== 'acknowledged' && /^R-(DIM|UNIT|RB-00[124]|QTY|DUP)/.test(f.ruleId) && f.refs.elementIds.includes(e.id));
+    const worst = fs.length ? fs[0].severity : null;
+    return `<tr><td><b>${esc(e.mark)}</b></td><td><span class="tchip" style="--c:var(--d-${typeDiv(e.type)})">${esc(TYPES[e.type].name)}</span></td><td>${esc(lvName(e.level))}</td><td class="n">${esc(e.qty)}</td><td>${worst ? `<span class="pill ${worst === 'critical' ? 'bad' : 'warn'}" title="${esc(fs.map(f => f.title).join('; '))}">${fs.length} issue${fs.length > 1 ? 's' : ''}</span> ` : ''}${key}</td>
       <td class="row"><button class="btn sm" data-act="edit" data-arg="${esc(e.id)}">Edit</button><button class="btn sm" data-act="copy" data-arg="${esc(e.id)}">Copy</button><button class="btn sm danger" data-act="del" data-arg="${esc(e.id)}">Delete</button></td></tr>`;
   }).join('');
   return `<div class="stack">
@@ -1505,9 +1960,10 @@ function preview() {
   try { r = computeElement(draft, S.factors); } catch (e) { pv.innerHTML = `<p class="err">Check inputs: ${esc(e.message)}</p>`; return; }
   const q = draft.qty, P = S.prices, agg = new Map();
   for (const l of r.lines) agg.set(l.code, (agg.get(l.code) || 0) + l.qty);
+  const checks = elementChecks(draft, S.factors);
   pv.innerHTML = `
+    ${checks.length ? `<div class="checks" id="pvChecks">${checks.map(c => `<div><span class="sev ${RULES[c.rule][0]}">${SEV_LABEL[RULES[c.rule][0]]}</span><span>${esc(c.description)}</span></div>`).join('')}</div>` : '<div class="checks" id="pvChecks"><div><span class="sev ok">✓ OK</span><span>No input problems found.</span></div></div>'}
     <div class="kv">${r.info.map(([a, b]) => `<span class="muted">${esc(a)}</span><b>${esc(b)}</b>`).join('')}</div>
-    ${!r.lines.length && !r.bars.length ? '<p class="note">These inputs produce no quantities. Check dimensions, spacing and cover.</p>' : ''}
     ${r.bars.length ? `<h4>Bar list (1 element)</h4><table><tr><th>Bar</th><th class="n">Ø</th><th class="n">Cut L (m)</th><th class="n">No.</th><th class="n">kg</th></tr>
       ${r.bars.map(b => `<tr><td>${esc(b.desc)}</td><td class="n">${b.dia}</td><td class="n">${fmt(b.len, 3)}</td><td class="n">${b.n}</td><td class="n">${fmt(b.len * b.n * kgpm(b.dia))}</td></tr>`).join('')}</table>` : ''}
     ${agg.size ? `<h4>Materials (× ${q} element${q === 1 ? '' : 's'}, before rounding)</h4><table>${[...agg].map(([c, v]) => `<tr><td>${esc(P[c].name)}</td><td class="n">${fmt(v * q, 3)}</td><td>${esc(P[c].unit)}</td></tr>`).join('')}</table>` : ''}
@@ -1553,15 +2009,17 @@ function vRebar() {
 }
 
 // ---- Exports (output format frozen by the golden master; do not change)
+// Text cells starting with = + - @ (or tab/CR) are prefixed with ' so spreadsheets do not run them as formulas
+const noFormula = v => (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) ? "'" + v : String(v);
 function boqHtmlTable(forExcel) {
-  const b = buildBOQ(S), p = S.project, num = (x, d = 2) => forExcel ? round(x, d) : fmt(x, d);
+  const b = buildBOQ(S), p = S.project, num = (x, d = 2) => forExcel ? round(x, d) : fmt(x, d), cell = v => esc(forExcel ? noFormula(v) : v);
   let i = 0;
   const body = b.rows.map(r => {
     if (r.kind === 'div') { i = 0; return `<tr class="div"><td colspan="6">${esc(r.text)}</td></tr>`; }
-    if (r.kind === 'lvl') return `<tr class="lvl"><td></td><td colspan="5">${esc(r.text)}</td></tr>`;
+    if (r.kind === 'lvl') return `<tr class="lvl"><td></td><td colspan="5">${cell(r.text)}</td></tr>`;
     if (r.kind === 'sub') return `<tr class="sub"><td></td><td colspan="4">${esc(r.text)} <span class="muted">(materials ${forExcel ? round(r.mat, 2) : peso(r.mat)} + labor ${forExcel ? round(r.lab, 2) : peso(r.lab)})</span></td><td class="n">${num(r.amt)}</td></tr>`;
     i++;
-    return `<tr><td class="n">${i}</td><td>${esc(r.name)}</td><td class="n">${r.pct ? num(r.qty) : num(r.qty, r.kind === 'mat' && CEIL_UNITS.has(r.unit) ? 0 : 2)}</td><td>${esc(r.unit)}</td><td class="n">${r.pct ? 'of ' + num(r.rate) : num(r.rate)}</td><td class="n">${num(r.amt)}</td></tr>`;
+    return `<tr><td class="n">${i}</td><td>${cell(r.name)}</td><td class="n">${r.pct ? num(r.qty) : num(r.qty, r.kind === 'mat' && CEIL_UNITS.has(r.unit) ? 0 : 2)}</td><td>${esc(r.unit)}</td><td class="n">${r.pct ? 'of ' + num(r.rate) : num(r.rate)}</td><td class="n">${num(r.amt)}</td></tr>`;
   }).join('');
   const T = b.totals, s = S.settings;
   const sum = `
@@ -1576,13 +2034,13 @@ function boqHtmlTable(forExcel) {
     <tr><td></td><td colspan="4">VAT (${s.vat}%)</td><td class="n">${num(T.vat)}</td></tr>
     <tr class="tot"><td></td><td colspan="4">TOTAL PROJECT COST</td><td class="n">${num(T.grand)}</td></tr>`;
   const head = `<tr><th class="n">Item</th><th>Description</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit cost (₱)</th><th class="n">Amount (₱)</th></tr>`;
-  const title = `<tr><td colspan="6"><b>BILL OF QUANTITIES – ${esc(p.name)}</b></td></tr><tr><td colspan="6">${esc([p.location, p.owner, p.date].filter(Boolean).join(' · '))}</td></tr>`;
+  const title = `<tr><td colspan="6"><b>BILL OF QUANTITIES – ${esc(p.name)}</b></td></tr><tr><td colspan="6">${cell([p.location, p.owner, p.date].filter(Boolean).join(' · '))}</td></tr>`;
   const table = `<table>${title}${head}${b.rows.length ? body : '<tr><td colspan="6">No elements yet.</td></tr>'}${b.rows.length ? sum : ''}</table>`;
   if (!forExcel) return table;
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>td,th{border:.5pt solid #ccc;font-family:Calibri}.div td{background:#dce6f5;font-weight:bold}.sub td,.tot td{font-weight:bold}.n{text-align:right}</style></head><body>${table}</body></html>`;
 }
 function boqCsv() {
-  const b = buildBOQ(S), q = v => `"${String(v).replace(/"/g, '""')}"`, out = [['Item', 'Description', 'Qty', 'Unit', 'Unit cost', 'Amount']];
+  const b = buildBOQ(S), q = v => `"${noFormula(v).replace(/"/g, '""')}"`, out = [['Item', 'Description', 'Qty', 'Unit', 'Unit cost', 'Amount']];
   let i = 0;
   for (const r of b.rows) {
     if (r.kind === 'div') { i = 0; out.push(['', r.text]); }
@@ -1631,8 +2089,60 @@ function vBOQ() {
     <div class="row"><button class="btn" data-act="exportXls">Export Excel</button><button class="btn" data-act="exportCsv">Export CSV</button><button class="btn pri" data-act="print">Print / PDF</button></div></div>
     ${Object.values(S.prices).some(x => x.source === 'sample') ? `<div class="note">Some prices are sample placeholders. Update them on the <a href="#" data-act="tab:prices">Prices</a> tab before using this estimate.</div>` : ''}
   </div>
-  <div class="print-only"><h2 style="margin:0">BILL OF QUANTITIES – ${esc(p.name)}</h2><div>${esc([p.location, p.owner, p.date].filter(Boolean).join(' · '))}</div></div>
+  <div class="print-only"><div class="wm-banner" id="wmBanner"></div><div class="ok-banner" id="okBanner"></div><h2 style="margin:0">BILL OF QUANTITIES – ${esc(p.name)}</h2><div>${esc([p.location, p.owner, p.date].filter(Boolean).join(' · '))}</div></div>
   ${groups.length ? body + sum : `<div class="card empty"><div class="big">${icon('boq')}</div><p class="muted">No elements yet.</p></div>`}
+  </div>`;
+}
+
+// ---- Audit
+function vAudit() {
+  const au = getAud(), pol = S.audit.policy, appr = S.audit.approval, user = userName(), T = au.totals;
+  const stale = appr && appr.hashes && appr.hashes.all !== au.hashes.all;
+  const sevC = {critical: 'var(--bad)', major: 'var(--orange)', minor: 'var(--muted)', info: 'var(--accent)'};
+  const cards = Object.keys(SEV_ORDER).map(k => `<div class="card sevcard" style="--c:${sevC[k]}" data-sev="${k}"><div class="s">${SEV_LABEL[k]}</div><div class="n">${au.counts[k]}</div><div class="s">${au.openCounts[k]} open${k === 'critical' ? ' · blocks approval' : ''}</div></div>`).join('');
+  const evid = ev => esc(JSON.stringify(ev, null, 1).replace(/^\{\n?|\n?\}$/g, '').replace(/^ "/gm, '').replace(/":/g, ':'));
+  const finding = f => `<div class="find" style="--c:${sevC[f.severity]}" data-finding="${esc(f.id)}">
+    <div class="hd"><span class="sev ${f.severity}">${SEV_LABEL[f.severity]}</span><b>${esc(f.title)}</b><span class="pill">${esc(f.ruleId)}</span><span class="id">${esc(f.id)}</span>
+      <span class="pill ${f.status === 'acknowledged' ? 'good' : f.status === 'reopened' ? 'warn' : ''}">${f.status === 'reopened' ? 'reopened – evidence changed' : esc(f.status)}</span>
+      <span style="margin-left:auto" class="row">${f.severity === 'critical' ? '' : f.status === 'acknowledged' ? `<button class="btn sm" data-act="reopen" data-arg="${esc(f.id)}">Reopen</button>` : `<button class="btn sm" data-act="ack" data-arg="${esc(f.id)}">Acknowledge…</button>`}</span></div>
+    <div style="margin-top:4px">${esc(f.description)}</div>
+    ${f.refs.elementIds.length ? `<div class="row" style="margin-top:6px;gap:4px">${f.refs.elementIds.slice(0, 12).map((id, n) => `<button class="btn sm" data-act="edit" data-arg="${esc(id)}">${esc(f.refs.marks[n] || id)}</button>`).join('')}${f.refs.elementIds.length > 12 ? `<span class="muted">+${f.refs.elementIds.length - 12} more</span>` : ''}</div>` : ''}
+    <div class="ev">${evid(f.evidence)}</div>
+    <div class="sg"><b>Suggested action:</b> ${esc(f.suggestion)}</div>
+    <div class="hist">Project ${esc(f.refs.projectId)} · Rev ${esc(f.refs.revision)}${f.refs.paths.length ? ' · ' + esc(f.refs.paths.slice(0, 6).join(', ')) + (f.refs.paths.length > 6 ? ' …' : '') : ''}${f.history.length ? '<br>' + f.history.map(h => `${esc(h.at.slice(0, 16).replace('T', ' '))} – ${esc(h.by)} ${esc(h.action)}${h.note ? ': “' + esc(h.note) + '”' : ''}`).join('<br>') : ''}</div></div>`;
+  const groups = Object.keys(SEV_ORDER).map(k => { const fs = au.findings.filter(f => f.severity === k); return fs.length ? `<h3>${SEV_LABEL[k]} (${fs.length})</h3>${fs.map(finding).join('')}` : ''; }).join('');
+  const resolved = Object.entries(S.audit.acks).filter(([id]) => !au.findings.some(f => f.id === id));
+  const scopeCount = (lv, types) => S.elements.filter(e => e.level === lv && types.includes(e.type)).length;
+  return `<div class="stack">
+  <div class="sevcards">${cards}</div>
+  <div class="g-2">
+    <div class="card"><h2>Approval</h2>
+      ${appr ? `<div class="note ${stale ? '' : 'info'}">${stale ? '▲ ' : '✓ '}Approved ${esc(appr.at.slice(0, 16).replace('T', ' '))} by <b>${esc(appr.by)}</b> at ${esc(peso(appr.totals.grand))}.${stale ? ` The estimate has changed since (now ${esc(peso(T.grand))}); exports are marked DRAFT until it is approved again.` : ''}</div>` : '<p class="muted" style="margin-top:0">This estimate is a working draft.</p>'}
+      <div class="grid" style="margin-top:8px">${field('Your name (recorded with acknowledgements and approvals)', `<input value="${esc(user)}" data-bind="user:name" placeholder="e.g. J. Dela Cruz">`)}</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn pri" data-act="approve" ${au.blocking.length || !user ? 'disabled' : ''}>${appr && !stale ? 'Re-approve' : 'Approve estimate'}</button>
+        ${appr ? '<button class="btn" data-act="revokeApproval">Revoke approval</button>' : ''}
+      </div>
+      <p class="${au.blocking.length ? 'err' : 'muted'}" style="font-size:12.5px">${au.blocking.length ? `Blocked: ${au.blocking.length} critical finding(s) must be resolved. Critical findings cannot be acknowledged.` : !user ? 'Enter your name to approve.' : `Ready: no critical findings. ${au.openCounts.major} major and ${au.openCounts.minor} minor open findings will be recorded with the approval.`}</p>
+      ${S.audit.approvalLog.length ? `<h3>Approval log</h3><div class="tbl-wrap"><table><tr><th>When</th><th>Who</th><th>Action</th><th class="n">Total</th><th>Note</th></tr>${S.audit.approvalLog.slice().reverse().map(a => `<tr><td>${esc(String(a.at).slice(0, 16).replace('T', ' '))}</td><td>${esc(a.by)}</td><td>${esc(a.action)}</td><td class="n">${a.grand !== undefined ? esc(peso(a.grand)) : ''}</td><td>${esc(a.note || '')}</td></tr>`).join('')}</table></div>` : ''}
+    </div>
+    <div class="card"><h2>Audit policy</h2><div class="grid" style="grid-template-columns:1fr">
+      ${field('Export policy', `<select data-bind="policy:exportPolicy">${EXPORT_POLICIES.map(([k, n]) => `<option value="${k}" ${pol.exportPolicy === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`)}
+      ${field('Unverified coefficients used by the estimate are', `<select data-bind="policy:unverifiedCoefficients"><option value="critical" ${pol.unverifiedCoefficients === 'critical' ? 'selected' : ''}>Critical – block approval (recommended)</option><option value="major" ${pol.unverifiedCoefficients === 'major' ? 'selected' : ''}>Major – allow approval, record as open</option></select>`)}
+      ${field('Price validity', `<input type="number" step="1" min="0" value="${esc(pol.priceValidityDays)}" data-bind="policy:priceValidityDays">`, 'days; 0 = no expiry')}
+    </div><p class="muted" style="font-size:12px">Checks are deterministic rules (audit ${AUDIT_VERSION}) on your inputs and the calculation results. No AI is used to judge arithmetic.</p></div>
+  </div>
+  <div class="card"><h2>Drawing takeoff register</h2><p class="muted" style="margin-top:0">Mark each scope as you finish taking it off the drawings. Incomplete scopes are reported as findings.</p>
+    <div class="tbl-wrap"><table><tr><th>Level</th>${TAKEOFF_SCOPES.map(([, n]) => `<th>${esc(n)}</th>`).join('')}</tr>
+    ${S.levels.map(l => `<tr><td><b>${esc(l.name)}</b></td>${TAKEOFF_SCOPES.map(([k, , types]) => { const v = (S.takeoff[l.id] || {})[k] || 'pending'; return `<td><select data-bind="takeoff:${esc(l.id)}:${k}" style="min-width:120px">${TAKEOFF_STATUS.map(([sv, sn]) => `<option value="${sv}" ${v === sv ? 'selected' : ''}>${esc(sn)}</option>`).join('')}</select><div class="muted" style="font-size:11px">${scopeCount(l.id, types)} element(s)</div></td>`; }).join('')}</tr>`).join('')}
+    </table></div></div>
+  <div class="card"><div class="row between"><h2 style="margin:0">Findings (${au.findings.length})</h2><span class="muted" style="font-size:12px">Sorted by severity. IDs stay the same while the cause is unchanged.</span></div>
+    ${au.findings.length ? groups : '<p class="muted">No findings.</p>'}
+    ${resolved.length ? `<h3>Resolved (${resolved.length})</h3><p class="muted" style="font-size:12px">Previously acknowledged findings that are no longer detected: ${resolved.map(([id]) => esc(id)).join(', ')}</p>` : ''}
+  </div>
+  <div class="card"><details><summary style="cursor:pointer;font-weight:600">Rule catalogue (${Object.keys(RULES).length} rules)</summary>
+    <div class="tbl-wrap" style="margin-top:10px"><table><tr><th>Rule</th><th>Severity</th><th>Checks</th></tr>${Object.entries(RULES).map(([id, [sv, t]]) => `<tr><td class="muted">${id}</td><td><span class="sev ${sv}">${SEV_LABEL[sv]}</span></td><td>${esc(t)}</td></tr>`).join('')}</table></div>
+    <p class="muted" style="font-size:12px">Unit plausibility limits: metres ${AUDIT_LIMITS.mMin}–${AUDIT_LIMITS.mMax} (sections ≤ ${AUDIT_LIMITS.sectionMax} m); cover ${AUDIT_LIMITS.coverMin}–${AUDIT_LIMITS.coverMax} mm; plaster ${AUDIT_LIMITS.plasterMin}–${AUDIT_LIMITS.plasterMax} mm; spacing ${AUDIT_LIMITS.spacingMin}–${AUDIT_LIMITS.spacingMax} mm. These are data-entry checks, not design limits.</p></details></div>
   </div>`;
 }
 

@@ -215,3 +215,52 @@ Per the brief ("report critical issues before proceeding"), Phase 1 should start
 
 ### Correction to Phase 0
 The Phase 0 baseline stored the per-level material and labor maps as empty `{}`: the serializer's `instanceof Map` check fails for objects created in the Node VM context. Every other recorded value was correct. The serializer now detects Maps by type tag. The baseline is regenerated **from the untouched `original/estimator.v1.html`** (engine and exports) and is identical to Phase 0 on every value it already had.
+
+---
+
+## 6. Status after Phase 2: Smart Estimate Auditor (2026-10-23)
+
+A separate `<script id="auditor">` block holds 36 deterministic rules (full list: `AUDIT_RULES.md`, generated from the code). It reads the saved inputs and the engine's own results. It never changes a number; the golden master is unchanged and the engine block is byte-identical to the original.
+
+| ID | Status after Phase 2 | Rule / mechanism | Test |
+|---|---|---|---|
+| A-C01 | **Controlled** | R-COEF-001 (unverified coefficient actually used by a costed element; critical by default, so approval is blocked) and R-COEF-002 (the interpolated 5" row, always critical). Approval is possible only after a person verifies each used value against Fajardo. | R-COEF-001/002, factorsUsed completeness (perturbation of all 83 factors × 21 elements) |
+| A-C02 | **Fixed (detected)** | R-RB-003 (critical, with the affected elements). The engine still omits the bar; the auditor makes it impossible to miss or approve. | R-RB-003 |
+| A-H04 | **Fixed (detected)** | R-DIM-001/002/003 on every numeric input; live in the editor. | R-DIM-* |
+| A-H05 | **Fixed (detected)** | R-RB-001 (cover ≥ half the section, which no longer passes as a 30 mm tie), R-DIM-003 (zero spacing), R-RB-002. | R-RB-001/002 |
+| A-M01 | **Mitigated** | R-REC-002 reports printed-rounding differences; R-REC-001 proves the unrounded totals reconcile to half a centavo. Rounding line amounts would change the numbers, so it stays a policy decision for you. | R-REC-001/002, A-M01 probe |
+| A-M02 | **Fixed** | Text cells starting with `= + - @` (tab/CR) get an apostrophe prefix in CSV and Excel. Normal output is byte-identical. | formula-injection test, exports golden |
+| A-M04 | **Fixed (detected)** | R-DIM-004. | R-DIM-004 |
+| A-M05 | **Fixed (detected)** | R-DIM-005 and R-DIM-006. | R-DIM-005/006 |
+| A-M09 | **Fixed (detected)** | R-OVL-001/002 give exact upper bounds for slab–beam and column–beam double counting. | R-OVL |
+| A-M10 | **Fixed (detected)** | R-DUP-001/002. | R-DUP |
+| A-M06, A-M07, A-L05, A-L01, A-L02, A-L06 | Open | Not in Phase 2 scope (half-up rounding, true XLSX, tie wire at slab supports, code duplication, render cost). | probes |
+
+### What the auditor adds to the app
+- **Audit tab:**
+  - severity cards
+  - an approval panel: a named approver; blocked while any critical finding exists; the approval records the input hash, totals and open findings
+  - an approval log and revoke
+  - policy settings
+  - a drawing takeoff register
+  - every finding with ID, rule, references, evidence, suggested action, status and acknowledgement history
+  - the rule catalogue
+- **Acknowledgement:** needs a name and a reason. Critical findings cannot be acknowledged. If the evidence changes, the finding re-opens.
+- **Staleness:** R-STALE-001 is raised after approval and R-STALE-002 after export, using a hash of everything that can change a quantity or cost. Provenance notes and acknowledgements are excluded from that hash.
+- **Export policy:**
+  - draft watermark (default)
+  - issues-only
+  - block-critical
+
+  Draft CSV, Excel and print output carries a "DRAFT – NOT APPROVED – n critical, m major" mark. Approved, unchanged output carries an "APPROVED … by …" header.
+- **Editor validation:** element rules run as you type.
+
+### Defects found and fixed during Phase 2 testing
+1. **Reconciliation tolerance too loose.** It was relative (1e-6 × amount), so it let ₱1.56 of error through on a ₱1.5M total. It is now an absolute half-centavo tolerance. A test tampers one centavo.
+2. **False unit warning.** Plaster thickness (mm) was range-checked as a bar spacing, which raised a wrong warning on the sample project. Each mm field now has its own range.
+3. **Print banner wiped.** The watermark banner was cleared by a re-render during print.
+
+### Remaining risks
+- An audit takes about 0.3 s on a 1,000-element project (measured in Chromium), and it runs once per change.
+- Overlap and unit rules are heuristics with stated bounds. They make no claim about the design.
+- Approval is a single-user record until Phase 5 (revisions) and Phase 6 (accounts and roles).

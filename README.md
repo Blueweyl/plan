@@ -21,8 +21,9 @@ Open it in Chrome or Edge by double-clicking. It needs no install, no server and
 1. **Project & data tab:** set the project info and levels/floors.
 2. **Elements tab:** add each element from the plans: mark, level, quantity and dimensions. Results preview live.
 3. **Rebar schedule tab:** the bar list and the number of bars to buy, per diameter.
-4. **BOQ & Cost tab:** the costed bill of quantities, with export.
-5. **Prices / Factors tabs:** your supplier prices and labor rates, and the estimating factors.
+4. **Audit tab:** deterministic checks (36 rules, see `AUDIT_RULES.md`) with severities, evidence and suggested fixes; acknowledge non-critical findings with a reason; drawing takeoff register; approve the estimate (blocked while critical findings exist); export policy. Draft exports are watermarked.
+5. **BOQ & Cost tab:** the costed bill of quantities, with export.
+6. **Prices / Factors tabs:** your supplier prices and labor rates, and the estimating factors.
    - The sample prices and the factors marked VERIFY must be checked against your own references.
 
 Work autosaves in the browser; the top bar shows whether the last autosave worked and how many changes are not yet in a project file. Local backups are kept before New, Open and Restore. Use **Save project file** (`.estimate.json`) to keep a permanent copy or move it to another PC.

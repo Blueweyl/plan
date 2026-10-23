@@ -16,12 +16,17 @@ export async function launch() { return pw.chromium.launch(); }
 
 // Opens a fresh page. `state` (object or raw string) is written to localStorage
 // before the app boots. Collects page errors and dialogs for assertions.
-export async function openApp(browser, {state, contextOptions = {}, url = APP_URL, beforeLoad} = {}) {
+// `answer`: text for prompt() dialogs, false to dismiss, or a function (dialog) -> one of those.
+export async function openApp(browser, {state, contextOptions = {}, url = APP_URL, beforeLoad, answer} = {}) {
   const context = await browser.newContext({viewport: {width: 1280, height: 900}, ...contextOptions});
   const page = await context.newPage();
   const errors = [], dialogs = [];
   page.on('pageerror', e => errors.push(e.message));
-  page.on('dialog', d => { dialogs.push({type: d.type(), message: d.message()}); d.accept(); });
+  page.on('dialog', d => {
+    dialogs.push({type: d.type(), message: d.message()});
+    const a = typeof answer === 'function' ? answer(d) : answer;
+    return a === false ? d.dismiss() : d.accept(a === undefined ? undefined : String(a));
+  });
   await page.goto(url);
   await page.evaluate(({key, raw}) => {
     localStorage.clear();

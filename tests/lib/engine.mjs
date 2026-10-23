@@ -13,18 +13,25 @@ const EXPORTS = ['DIAS', 'DIVS', 'DIV_NAME', 'MATERIALS', 'LABOR', 'CEIL_UNITS',
   'ceilE', 'floorE', 'splitPiece', 'ffdBars', 'optimizeDia', 'parseOpenings', 'normInputs', 'computeElement',
   'buildEstimate', 'buildBOQ', 'qtyRound', 'runSelfTests'];
 
-export function engineSource(file = APP_HTML) {
+const AUDITOR_EXPORTS = ['AUDIT_VERSION', 'RULES', 'SEV_ORDER', 'TAKEOFF_SCOPES', 'TAKEOFF_STATUS', 'EXPORT_POLICIES', 'AUDIT_LIMITS',
+  'defaultAuditState', 'hash64', 'canon', 'inputHashes', 'factorsUsed', 'elementChecks', 'reconcileChecks', 'runAudit', 'exportBanner'];
+
+export function engineSource(file = APP_HTML, block = 'engine') {
   const html = fs.readFileSync(file, 'utf8');
-  const m = html.match(/<script id="engine">([\s\S]*?)<\/script>/);
-  if (!m) throw new Error('No <script id="engine"> block in ' + file);
+  const m = html.match(new RegExp(`<script id="${block}">([\\s\\S]*?)<\\/script>`));
+  if (!m) throw new Error(`No <script id="${block}"> block in ` + file);
   return m[1];
 }
 
-export function loadEngine(file = APP_HTML) {
-  const src = engineSource(file);
+// Engine only (also works on original/estimator.v1.html, which has no auditor).
+// Pass {auditor: true} to load the auditor block into the same context.
+export function loadEngine(file = APP_HTML, {auditor = false} = {}) {
+  let src = engineSource(file), names = EXPORTS;
+  if (auditor) { src += '\n' + engineSource(file, 'auditor'); names = EXPORTS.concat(AUDITOR_EXPORTS); }
   const ctx = vm.createContext({});
-  return vm.runInContext(src + `\n;({${EXPORTS.join(',')}})`, ctx, {filename: path.basename(file) + '#engine'});
+  return vm.runInContext(src + `\n;({${names.join(',')}})`, ctx, {filename: path.basename(file) + '#engine'});
 }
+export const loadAuditor = (file = APP_HTML) => loadEngine(file, {auditor: true});
 
 export const sha256 = data => crypto.createHash('sha256').update(data).digest('hex');
 export const readJSON = p => JSON.parse(fs.readFileSync(path.resolve(ROOT, p), 'utf8'));
