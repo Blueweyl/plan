@@ -10,7 +10,7 @@ import {launch, openApp} from './lib/browser.mjs';
 const fixture = readJSON('tests/fixtures/sample-18.estimate.json');
 const BASE = readJSON('BASELINE_RESULTS.json');
 const clone = x => JSON.parse(JSON.stringify(x));
-const TABS = ['dashboard', 'elements', 'rebar', 'boq', 'audit', 'prices', 'labor', 'factors', 'project', 'selftest'];
+const TABS = ['dashboard', 'elements', 'rebar', 'boq', 'audit', 'revisions', 'prices', 'labor', 'factors', 'project', 'selftest'];
 let browser;
 test.before(async () => { browser = await launch(); });
 test.after(async () => { await browser.close(); });
@@ -54,7 +54,7 @@ test('P1-03 every peso amount on the dashboard is a computed value (no fabricate
 test('P1-04 every navigation item opens a working view', async () => {
   const app = await openApp(browser, {state: fixture});
   const n = await app.page.locator('#nav button').count();
-  assert.equal(n, 9);
+  assert.equal(n, 10);
   for (let i = 0; i < n; i++) {
     const b = app.page.locator('#nav button').nth(i);
     await b.click();

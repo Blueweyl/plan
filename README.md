@@ -25,6 +25,7 @@ Excavation & backfill, roofing, floor/wall tiles, waterproofing, painting, doors
 2. **Elements tab:** add each element from the plans: mark, level, quantity and dimensions. Results preview live.
 3. **Rebar schedule tab:** the bar list and the number of bars to buy, per diameter.
 4. **Audit tab:** deterministic checks (36 rules, see `AUDIT_RULES.md`) with severities, evidence and suggested fixes; acknowledge non-critical findings with a reason; drawing takeoff register; approve the estimate (blocked while critical findings exist); export policy. Draft exports are watermarked.
+4b. **Revisions tab:** submit the working draft as a numbered, read-only revision; approve or return it; compare any two revisions (element, price and BOQ-line changes split into quantity-driven and price-driven parts); add reviewer comments; restore an old revision as a new one; export a revision's original BOQ.
 5. **BOQ & Cost tab:** the costed bill of quantities, with export.
 6. **Labor & equipment tab:** trades and daily wages (not preset), crews, equipment rental rates, minimum charges and mobilization; choose one method per labor item: unit rate, % of materials, productivity (crew × days) or pakyaw (lump sum). Optional equipment per item.
 7. **Prices / Factors tabs:** your supplier prices and labor rates, and the estimating factors.

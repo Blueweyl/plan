@@ -28,7 +28,7 @@ test('every tab renders the sample project without page errors', async () => {
   const browser = await launch();
   try {
     const app = await openApp(browser, {state: st});
-    for (const t of ['dashboard', 'project', 'elements', 'rebar', 'boq', 'audit', 'prices', 'labor', 'factors', 'selftest']) {
+    for (const t of ['dashboard', 'project', 'elements', 'rebar', 'boq', 'audit', 'revisions', 'prices', 'labor', 'factors', 'selftest']) {
       await app.page.evaluate(t => App.tab(t), t);
       assert.ok((await app.page.textContent('#view')).length > 50, `tab ${t} rendered`);
     }

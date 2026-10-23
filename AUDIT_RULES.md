@@ -37,6 +37,7 @@ All rules are deterministic functions of the saved project and the engine's own 
 | R-LAB-001 | critical | Labor item cannot be costed by its method |  |
 | R-LAB-002 | critical | Equipment or pakyaw amount is not set |  |
 | R-LAB-003 | major | Possible double counting of equipment |  |
+| R-REV-001 | critical | Revision integrity check failed |  |
 | R-MOD-002 | critical | Inputs cannot produce this item |  |
 | R-DUP-001 | major | Possible duplicate elements | Two or more elements with the same type, level and normalised inputs. |
 | R-DUP-002 | major | Element mark used more than once | The same mark (case-insensitive) on more than one element. |

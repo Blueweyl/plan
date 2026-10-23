@@ -1494,6 +1494,7 @@ const RULES = {
   'R-LAB-001': ['critical', 'Labor item cannot be costed by its method'],
   'R-LAB-002': ['critical', 'Equipment or pakyaw amount is not set'],
   'R-LAB-003': ['major', 'Possible double counting of equipment'],
+  'R-REV-001': ['critical', 'Revision integrity check failed'],
   'R-MOD-002': ['critical', 'Inputs cannot produce this item'],
   'R-DUP-001': ['major', 'Possible duplicate elements'],
   'R-DUP-002': ['major', 'Element mark used more than once'],
@@ -1802,6 +1803,7 @@ function runAudit(st, {today} = {}) {
     }
     if (pending.length) F_('R-TO-002', lv.id, `${lv.name}: ${pending.length} of ${TAKEOFF_SCOPES.length} scopes are not marked Complete or Not applicable.`, {level: lv.name, scopes: pending}, 'Mark each scope in the takeoff register as you finish it.');
   }
+  for (const rv of st.revisions || []) if (typeof revisionIntact === 'function' && !revisionIntact(rv)) F_('R-REV-001', 'rev|' + rv.no, `Revision ${rv.no} failed its integrity check: its stored snapshot does not match the hash recorded when it was created.`, {revision: rv.no, storedHash: rv.snapshotHash}, 'Do not rely on this revision. Restore the project file from a trusted copy.');
   if (st.quarantine && st.quarantine.elements && st.quarantine.elements.length) F_('R-QUA-001', 'q', `${st.quarantine.elements.length} element(s) from a loaded file could not be used and are not costed.`, {elements: st.quarantine.elements.map(e => (e && e.mark) || '?')}, 'Re-enter them with a supported element type, then remove them from quarantine.');
   // Staleness
   const H = inputHashes(st), changed = old => Object.keys(H).filter(k => k !== 'all' && old && old[k] !== H[k]);
@@ -1839,6 +1841,97 @@ function exportBanner(st, audit) {
   else if (!approvedClean) watermark = appr ? `DRAFT – CHANGED SINCE APPROVAL (${appr.at}) – ${issues}` : `DRAFT – NOT APPROVED – ${issues}`;
   const header = approvedClean ? `APPROVED ${appr.at} by ${appr.by} (audit ${appr.auditVersion}, engine ${appr.engineVersion})` : null;
   return {block, watermark, header};
+}
+</script>
+
+<!-- ===================================================================== -->
+<!-- REVISIONS: Phase 5 snapshots and comparison (pure functions)          -->
+<!-- ===================================================================== -->
+<script id="revisions">
+'use strict';
+// Phase 5: revision control, pure functions (no DOM, no clock).
+// A revision stores (1) an immutable JSON snapshot of every input, with its hash,
+// and (2) the results computed when it was created, with the engine versions.
+// Historical numbers are therefore shown exactly as approved; a recalculation with
+// the current engine can be compared against them but never replaces them.
+const REVISION_VERSION = '1.0.0';
+const REV_STATUSES = [['submitted', 'Submitted'], ['approved', 'Approved'], ['superseded', 'Superseded'], ['draft', 'Returned to draft']];
+const SNAPSHOT_KEYS = ['project', 'settings', 'levels', 'elements', 'prices', 'labor', 'laborSetup', 'factors', 'factorMeta', 'takeoff', 'quarantine'];
+
+function snapshotOf(st) {
+  const o = {version: st.version, engineVersion: st.engineVersion};
+  for (const k of SNAPSHOT_KEYS) if (st[k] !== undefined) o[k] = st[k];
+  o.audit = {policy: st.audit && st.audit.policy, acks: st.audit && st.audit.acks};
+  return JSON.stringify(o);
+}
+const revisionIntact = rev => typeof rev.snapshot === 'string' && hash64(rev.snapshot) === rev.snapshotHash;
+
+// ---- BOQ line comparison with an exact quantity/price decomposition:
+//   Δamount = (q1 − q0)·p0  [quantity-driven]  +  (p1 − p0)·q1  [price-driven]
+// For %-of-materials labor, q is the materials base and p the percentage.
+function lineKey(r) {
+  if (r.kind === 'mat') return r.custom ? `P:${r.elementId}:${r.name}` : 'M:' + r.code;
+  if (r.eq) return r.code + (r.forCode ? '@' + r.forCode : '');
+  return 'L:' + r.code;
+}
+const baseName = n => String(n).replace(/ \((?:[\d.,]+ crew-days|pakyaw|productivity|rental)[^)]*\)$/, '').replace(/ \([^)]*billed\)$/, '');
+function aggregateLines(rows) {
+  const m = new Map();
+  for (const r of rows || []) {
+    if (r.kind !== 'mat' && r.kind !== 'lab') continue;
+    const k = lineKey(r), g = m.get(k) || {key: k, kind: r.kind === 'mat' ? 'material' : (r.eq || (typeof EQUIPMENT_CODES !== 'undefined' && EQUIPMENT_CODES.has(r.code)) ? 'equipment' : 'labor'),
+      name: baseName(r.name), unit: r.pct ? '₱ of materials' : r.unit, q: 0, a: 0};
+    g.q += r.pct ? r.rate : r.qty; g.a += r.amt;
+    m.set(k, g);
+  }
+  for (const g of m.values()) g.p = g.q ? g.a / g.q : 0;
+  return m;
+}
+function diffBOQ(A, B) {
+  const a = aggregateLines(A.rows), b = aggregateLines(B.rows), lines = [];
+  for (const k of new Set([...a.keys(), ...b.keys()])) {
+    const x = a.get(k), y = b.get(k), q0 = x ? x.q : 0, a0 = x ? x.a : 0, p0 = x ? x.p : 0, q1 = y ? y.q : 0, a1 = y ? y.a : 0, p1 = y ? y.p : 0;
+    let qEff, pEff;
+    if (x && y) { qEff = (q1 - q0) * p0; pEff = (p1 - p0) * q1; }
+    else if (y) { qEff = a1; pEff = 0; } else { qEff = -a0; pEff = 0; }
+    const d = {key: k, kind: (y || x).kind, name: (y || x).name, unit: (y || x).unit, q0, p0, a0, q1, p1, a1, dq: q1 - q0, da: a1 - a0, qEff, pEff, status: x && y ? 'changed' : y ? 'added' : 'removed'};
+    if (Math.abs(d.da) > 1e-9 || Math.abs(d.dq) > 1e-9) lines.push(d);
+  }
+  lines.sort((m, n) => Math.abs(n.da) - Math.abs(m.da) || m.key.localeCompare(n.key));
+  const totals = Object.fromEntries(Object.keys(B.totals).map(k => [k, {a: A.totals[k], b: B.totals[k], d: B.totals[k] - A.totals[k]}]));
+  const sum = (kind, f) => lines.filter(l => !kind || l.kind === kind).reduce((s, l) => s + l[f], 0);
+  return {lines, totals, summary: {quantityDriven: sum(null, 'qEff'), priceDriven: sum(null, 'pEff'), direct: totals.direct.d,
+    byKind: Object.fromEntries(['material', 'labor', 'equipment'].map(k => [k, {da: sum(k, 'da'), qEff: sum(k, 'qEff'), pEff: sum(k, 'pEff')}]))}};
+}
+
+// ---- Element-level and input-level comparison of two project states
+function diffElements(sa, sb) {
+  const name = (st, id) => (st.levels.find(l => l.id === id) || {}).name || id;
+  const ma = new Map(sa.elements.map(e => [e.id, e])), mb = new Map(sb.elements.map(e => [e.id, e])), out = [];
+  for (const e of sb.elements) {
+    const o = ma.get(e.id);
+    if (!o) { out.push({status: 'added', id: e.id, mark: e.mark, type: e.type, level: name(sb, e.level), changes: []}); continue; }
+    const ch = [];
+    for (const k of ['type', 'mark', 'qty']) if (canon(o[k]) !== canon(e[k])) ch.push([k, o[k], e[k]]);
+    if (name(sa, o.level) !== name(sb, e.level)) ch.push(['level', name(sa, o.level), name(sb, e.level)]);
+    const ia = TYPES[o.type] ? normInputs(o.type, o.inp) : o.inp, ib = TYPES[e.type] ? normInputs(e.type, e.inp) : e.inp;
+    for (const k of new Set([...Object.keys(ia || {}), ...Object.keys(ib || {})])) if (canon(ia[k]) !== canon(ib[k])) ch.push(['inp.' + k, ia[k], ib[k]]);
+    if (ch.length) out.push({status: 'changed', id: e.id, mark: e.mark, type: e.type, level: name(sb, e.level), changes: ch});
+  }
+  for (const o of sa.elements) if (!mb.has(o.id)) out.push({status: 'removed', id: o.id, mark: o.mark, type: o.type, level: name(sa, o.level), changes: []});
+  return out;
+}
+function diffInputs(sa, sb) {
+  const out = [], flat = (o, p = '') => Object.entries(o || {}).flatMap(([k, v]) => v && typeof v === 'object' && !Array.isArray(v) ? flat(v, p + k + '.') : [[p + k, v]]);
+  const cmp = (area, a, b) => { const A = new Map(flat(a)), Bm = new Map(flat(b)); for (const k of new Set([...A.keys(), ...Bm.keys()])) if (canon(A.get(k)) !== canon(Bm.get(k))) out.push({area, path: k, from: A.get(k), to: Bm.get(k)}); };
+  cmp('settings', sa.settings, sb.settings);
+  cmp('factors', sa.factors, sb.factors);
+  const pick = (o, ks) => Object.fromEntries(Object.entries(o || {}).map(([c, v]) => [c, Object.fromEntries(ks.filter(k => v[k] !== undefined).map(k => [k, v[k]]))]));
+  cmp('prices', pick(sa.prices, ['name', 'price']), pick(sb.prices, ['name', 'price']));
+  cmp('labor', pick(sa.labor, ['name', 'mode', 'rate', 'crew', 'output', 'crews', 'lump', 'equip', 'eqOutput', 'attach']), pick(sb.labor, ['name', 'mode', 'rate', 'crew', 'output', 'crews', 'lump', 'equip', 'eqOutput', 'attach']));
+  const ls = st => st.laborSetup ? {hoursPerDay: st.laborSetup.hoursPerDay, burdenPct: st.laborSetup.burdenPct, wages: Object.fromEntries((st.laborSetup.trades || []).map(t => [t.name, t.wage])), crews: Object.fromEntries((st.laborSetup.crews || []).map(c => [c.name, c.members])), equipment: Object.fromEntries((st.laborSetup.equipment || []).map(e => [e.name, {basis: e.basis, rate: e.rate, minUnits: e.minUnits, mobilization: e.mobilization}]))} : {};
+  cmp('labor setup', ls(sa), ls(sb));
+  return out;
 }
 </script>
 
@@ -1912,6 +2005,7 @@ function defaultState() {
     audit: defaultAuditState(),
     takeoff: {},
     laborSetup: defaultLaborSetup(),
+    revisions: [],
   };
 }
 
@@ -1929,7 +2023,7 @@ function migrate(raw) {
   const from = isNum(raw.version) ? Number(raw.version) : 1;
   if (from > SCHEMA_VERSION) R('warn', 'NEWER_VERSION', `Saved by a newer app (schema ${from}). Unknown parts are kept in quarantine.`);
 
-  const KNOWN_ROOT = ['version', 'engineVersion', 'meta', 'project', 'settings', 'levels', 'elements', 'prices', 'labor', 'factors', 'factorMeta', 'quarantine', 'audit', 'takeoff', 'laborSetup'];
+  const KNOWN_ROOT = ['version', 'engineVersion', 'meta', 'project', 'settings', 'levels', 'elements', 'prices', 'labor', 'factors', 'factorMeta', 'quarantine', 'audit', 'takeoff', 'laborSetup', 'revisions'];
   for (const k of Object.keys(raw)) if (!KNOWN_ROOT.includes(k)) unknown('root', k, raw[k]);
 
   if (isObj(raw.project)) for (const k of ['name', 'location', 'owner', 'date', 'notes']) if (raw.project[k] !== undefined) st.project[k] = str(raw.project[k]);
@@ -2080,6 +2174,19 @@ function migrate(raw) {
     if (Array.isArray(L.equipment)) T.equipment = L.equipment.filter(e => isObj(e) && ID_RE.test(str(e.id))).map(e => ({id: e.id, name: str(e.name, e.id), basis: e.basis === 'day' ? 'day' : 'hr',
       rate: isNum(e.rate) ? Number(e.rate) : null, minUnits: isNum(e.minUnits) ? Math.max(0, Number(e.minUnits)) : 0, mobilization: isNum(e.mobilization) ? Math.max(0, Number(e.mobilization)) : 0}));
   }
+  if (Array.isArray(raw.revisions)) raw.revisions.forEach((r, n) => {
+    if (!isObj(r) || typeof r.snapshot !== 'string' || !isNum(r.no)) { unknown('revisions', String(n), r); return; }
+    let status = r.status;
+    if (!REV_STATUSES.some(([k]) => k === status)) { bad(`revisions[${n}].status`, status, 'draft'); status = 'draft'; }
+    const log = a => (Array.isArray(a) ? a : []).filter(isObj).map(x => Object.fromEntries(Object.entries(x).filter(([k]) => !BAD_KEYS.has(k)).map(([k, v]) => [k, v === null ? null : str(v)])));
+    st.revisions.push({no: Number(r.no), id: ID_RE.test(str(r.id)) ? r.id : uid(), createdAt: str(r.createdAt), createdBy: str(r.createdBy), description: str(r.description),
+      basedOn: isNum(r.basedOn) ? Number(r.basedOn) : null, status,
+      versions: isObj(r.versions) ? Object.fromEntries(Object.entries(r.versions).filter(([k]) => !BAD_KEYS.has(k)).map(([k, v]) => [k, str(v)])) : {},
+      snapshot: r.snapshot, snapshotHash: str(r.snapshotHash),
+      results: isObj(r.results) ? clone(r.results) : {totals: {}, divTotals: [], rows: []}, audit: isObj(r.audit) ? clone(r.audit) : {},
+      statusLog: log(r.statusLog), comments: log(r.comments), approval: isObj(r.approval) ? {at: str(r.approval.at), by: str(r.approval.by)} : null});
+  });
+  if (isNum(raw.meta && raw.meta.basedOn)) st.meta.basedOn = Number(raw.meta.basedOn);
   if (isObj(raw.takeoff)) for (const [lid, reg] of Object.entries(raw.takeoff)) {
     const nid = idMap.get(lid);
     if (!nid || !isObj(reg)) { if (!BAD_KEYS.has(lid)) unknown('takeoff', lid, reg); continue; }
@@ -2193,6 +2300,7 @@ const IC = {
   layers: '<path d="m12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
   wall: '<path d="M3 5h18v14H3zM3 12h18M9 5v7M15 12v7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  history: '<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>',
   users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -2202,7 +2310,7 @@ const icon = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const typeDiv = t => TYPES[t].div || 'REBAR';
 
 // ---- Navigation
-const TABS = [['dashboard', 'Dashboard', 'dash'], ['elements', 'Elements', 'list'], ['rebar', 'Rebar schedule', 'bars'], ['boq', 'BOQ & Cost', 'boq'], ['audit', 'Audit', 'shield'],
+const TABS = [['dashboard', 'Dashboard', 'dash'], ['elements', 'Elements', 'list'], ['rebar', 'Rebar schedule', 'bars'], ['boq', 'BOQ & Cost', 'boq'], ['audit', 'Audit', 'shield'], ['revisions', 'Revisions', 'history'],
   ['prices', 'Prices', 'tag'], ['labor', 'Labor & equipment', 'users'], ['factors', 'Factors', 'sliders'], ['project', 'Project & data', 'folder'], ['selftest', 'Self-test', 'check']];
 const VALID_TABS = new Set(TABS.map(t => t[0]));
 let cur = 'dashboard', levelFilter = 'all', typeFilter = 'all', draft = null, focusDiv = null;
@@ -2274,18 +2382,76 @@ const App = {
     const au = runAudit(S, {today: localDate()}), by = userName();
     if (au.blocking.length) return alert(`Approval is blocked by ${au.blocking.length} critical finding(s). Resolve them first.`);
     if (!by) return alert('Enter your name in the Approval panel first.');
-    if (!confirm(`Approve this estimate as ${by}?\n\nTotal project cost ${peso(au.totals.grand)}.\n${au.openCounts.major} major and ${au.openCounts.minor} minor finding(s) remain open and are recorded with the approval.`)) return;
-    const rec = {at: nowIso(), by, hashes: au.hashes, totals: {grand: au.totals.grand, direct: au.totals.direct}, auditVersion: AUDIT_VERSION, engineVersion: S.engineVersion,
-      openFindings: au.findings.filter(f => f.status !== 'acknowledged').map(f => ({id: f.id, ruleId: f.ruleId, severity: f.severity})),
-      acknowledged: au.findings.filter(f => f.status === 'acknowledged').map(f => ({id: f.id, ruleId: f.ruleId}))};
-    S.audit.approval = rec; S.audit.approvalLog.push({action: 'approved', at: rec.at, by, grand: rec.totals.grand});
-    S.meta.status = 'approved'; persist(); render();
+    if (!confirm(`Approve this estimate as ${by}?\n\nTotal project cost ${peso(au.totals.grand)}.\n${au.openCounts.major} major and ${au.openCounts.minor} minor finding(s) remain open and are recorded with the approval.\n\nThis creates Revision ${S.revisions.reduce((m, r) => Math.max(m, r.no), 0) + 1}.`)) return;
+    const rev = createRevision('submitted', 'Submitted and approved from the Audit tab', au);
+    approveRevision(rev, au);
+    persist(); render();
   },
   revokeApproval() {
     if (!S.audit.approval) return;
     const note = prompt('Reason for revoking the approval?'); if (note === null) return;
+    const rev = revByNo(S.audit.approval.revisionNo);
+    if (rev && rev.status === 'approved') setRevStatus(rev, 'draft', 'Approval revoked: ' + note);
     S.audit.approvalLog.push({action: 'revoked', at: nowIso(), by: userName() || '(no name)', note});
     S.audit.approval = null; S.meta.status = 'draft'; persist(); render();
+  },
+  revSubmit() {
+    const d = (document.getElementById('revDesc') || {}).value || '';
+    if (!userName()) return alert('Enter your name on the Audit tab (Approval panel) first.');
+    if (!d.trim()) return alert('Describe what changed in this revision.');
+    const rev = createRevision('submitted', d.trim());
+    revSel = {view: rev.no, a: S.revisions.length > 1 ? S.revisions[S.revisions.length - 2].no : rev.no, b: rev.no};
+    persist(); render();
+  },
+  revApprove(n) {
+    const rev = revByNo(n); if (!rev || rev.status !== 'submitted') return;
+    if (!userName()) return alert('Enter your name on the Audit tab first.');
+    if (!revisionIntact(rev)) return alert('This revision failed its integrity check and cannot be approved.');
+    const au = runAudit(revisionState(rev), {today: localDate()});
+    if (au.blocking.length) return alert(`Revision ${rev.no} has ${au.blocking.length} critical finding(s) and cannot be approved.`);
+    if (!confirm(`Approve Revision ${rev.no} (${peso(rev.results.totals.grand)}) as ${userName()}?`)) return;
+    approveRevision(rev, au); persist(); render();
+  },
+  revReturn(n) {
+    const rev = revByNo(n); if (!rev || rev.status !== 'submitted') return;
+    const note = prompt(`Return Revision ${rev.no} to draft. What needs to change?`); if (note === null) return;
+    if (!note.trim()) return alert('A reason is required.');
+    setRevStatus(rev, 'draft', note.trim()); persist(); render();
+  },
+  revRestore(n) {
+    const rev = revByNo(n); if (!rev) return;
+    if (!revisionIntact(rev)) return alert('This revision failed its integrity check and cannot be restored.');
+    if (!userName()) return alert('Enter your name on the Audit tab first.');
+    if (!confirm(`Restore Revision ${rev.no} as a new revision?\n\nThe working draft is replaced by the inputs of Revision ${rev.no} (a local backup of the current draft is kept), and a new revision is created. Existing revisions are not changed.`)) return;
+    writeBackup(JSON.stringify(S), 'before-restore-rev');
+    const old = revisionState(rev);
+    for (const key of SNAPSHOT_KEYS) if (old[key] !== undefined) S[key] = clone(old[key]);
+    S.audit.policy = clone(old.audit.policy); S.audit.acks = clone(old.audit.acks || {});
+    S.meta.basedOn = rev.no;
+    const nr = createRevision('submitted', `Restored from Rev ${rev.no}`);
+    nr.basedOn = rev.no;
+    revSel = {view: nr.no, a: rev.no, b: nr.no};
+    persist(); render();
+  },
+  revComment(n) {
+    const rev = revByNo(n), box = document.getElementById('revComment'); if (!rev || !box) return;
+    if (!userName()) return alert('Enter your name on the Audit tab first.');
+    if (!box.value.trim()) return;
+    rev.comments.push({at: nowIso(), by: userName(), text: box.value.trim()}); persist(); render();
+  },
+  revExport(n) {
+    const rev = revByNo(n); if (!rev) return;
+    const q = v => `"${String(v).replace(/"/g, '""')}"`, P = revisionState(rev).project;
+    const head = [[revBanner(rev)], [`${P.name} – Revision ${rev.no}: ${rev.description}`], [`Created ${rev.createdAt} by ${rev.createdBy} · engine ${rev.versions.engine} · audit ${rev.versions.audit}`], []].map(r => r.map(q).join(',')).join('\r\n');
+    download(new Blob(['\ufeff' + head + '\r\n' + boqCsv(rev.results)], {type: 'text/csv'}), `${fileBase()} Rev ${rev.no} BOQ.csv`);
+  },
+  revView(n) { revSel.view = Number(n); render(); },
+  revCompare() { const a = document.getElementById('cmpA'), b = document.getElementById('cmpB'); if (a && b) { revSel.a = a.value === 'work' ? 'work' : Number(a.value); revSel.b = b.value === 'work' ? 'work' : Number(b.value); render(); } },
+  revVerify(n) {
+    const rev = revByNo(n); if (!rev) return;
+    const b = buildBOQ(revisionState(rev)), diffs = Object.keys(rev.results.totals).filter(k => Math.abs((b.totals[k] || 0) - (rev.results.totals[k] || 0)) > 0.005).map(k => ({k, stored: rev.results.totals[k], now: b.totals[k]}));
+    revVerified[n] = {at: nowIso(), match: !diffs.length && b.rows.length === rev.results.rows.length, diffs, sameEngine: rev.versions.engineCode === ENGINE_CODE_HASH};
+    render();
   },
   toggleTheme() { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(THEME_KEY, t); } catch (e) {} renderStatus(); },
   restoreBackup(k) {
@@ -2333,6 +2499,49 @@ function download(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
+// ---- Revisions
+const ENGINE_CODE_HASH = (() => { try { return hash64(['engine', 'modules', 'labor'].map(id => (document.getElementById(id) || {}).textContent || '').join('\n')); } catch (e) { return ''; } })();
+const REV_LABEL = Object.fromEntries(REV_STATUSES);
+const revByNo = n => S.revisions.find(r => r.no === Number(n));
+const revCache = new Map();
+function revisionState(rev) {   // full project state of a revision, from its immutable snapshot
+  if (!revCache.has(rev.snapshotHash + rev.no)) revCache.set(rev.snapshotHash + rev.no, migrate(JSON.parse(rev.snapshot)).state);
+  return revCache.get(rev.snapshotHash + rev.no);
+}
+function createRevision(status, description, au) {
+  const now = nowIso(), by = userName(), no = S.revisions.reduce((m, r) => Math.max(m, r.no), 0) + 1, b = buildBOQ(S);
+  au = au || runAudit(S, {today: localDate()});
+  const snapshot = snapshotOf(S);
+  const rev = {no, id: uid(), createdAt: now, createdBy: by, description, basedOn: isNum(S.meta.basedOn) ? S.meta.basedOn : null, status,
+    versions: {app: APP_VERSION, engine: S.engineVersion, modules: MODULES_VERSION, labor: LABOR_VERSION, audit: AUDIT_VERSION, revisions: REVISION_VERSION, engineCode: ENGINE_CODE_HASH},
+    snapshot, snapshotHash: hash64(snapshot),
+    results: {totals: b.totals, divTotals: b.divTotals, rows: b.rows, hashes: au.hashes},
+    audit: {counts: au.counts, openCounts: au.openCounts, blocking: au.blocking.map(f => ({id: f.id, ruleId: f.ruleId, title: f.title}))},
+    statusLog: [{at: now, by, from: null, to: status, note: description}], comments: [], approval: null};
+  S.revisions.push(rev); S.meta.revision = no; S.meta.basedOn = no;
+  return rev;
+}
+function setRevStatus(rev, to, note) { rev.statusLog.push({at: nowIso(), by: userName() || '(no name)', from: rev.status, to, note: note || ''}); rev.status = to; }
+function approveRevision(rev, au) {
+  const by = userName();
+  for (const r of S.revisions) if (r !== rev && r.status === 'approved') setRevStatus(r, 'superseded', `Superseded by Rev ${rev.no}`);
+  rev.approval = {at: nowIso(), by};
+  setRevStatus(rev, 'approved', 'Approved');
+  S.audit.approval = {at: rev.approval.at, by, hashes: rev.results.hashes, totals: {grand: rev.results.totals.grand, direct: rev.results.totals.direct}, auditVersion: AUDIT_VERSION, engineVersion: rev.versions.engine,
+    openFindings: au.findings.filter(f => f.status !== 'acknowledged').map(f => ({id: f.id, ruleId: f.ruleId, severity: f.severity})),
+    acknowledged: au.findings.filter(f => f.status === 'acknowledged').map(f => ({id: f.id, ruleId: f.ruleId})), revisionNo: rev.no};
+  S.audit.approvalLog.push({action: 'approved', at: rev.approval.at, by, grand: rev.results.totals.grand, note: 'Rev ' + rev.no});
+  S.meta.status = 'approved';
+}
+function revBanner(rev) {
+  if (!revisionIntact(rev)) return `INTEGRITY CHECK FAILED – REVISION ${rev.no} – DO NOT USE`;
+  if (rev.status === 'approved') return `APPROVED REVISION ${rev.no} – ${rev.approval ? rev.approval.at + ' by ' + rev.approval.by : ''}`;
+  if (rev.status === 'superseded') return `SUPERSEDED – REVISION ${rev.no} (replaced by a later approved revision)`;
+  if (rev.status === 'submitted') return `SUBMITTED REVISION ${rev.no} – NOT APPROVED`;
+  return `REVISION ${rev.no} RETURNED TO DRAFT – NOT APPROVED`;
+}
+let revSel = {view: null, a: null, b: 'work'}, revVerified = {};
+
 // Exports go through the policy gate; the frozen boqCsv()/boqHtmlTable() bodies are unchanged
 function exportGate() {
   const au = runAudit(S, {today: localDate()}), b = exportBanner(S, au);
@@ -2455,10 +2664,12 @@ function renderStatus() {
   nameEl.textContent = S.project.name || 'Untitled project';
   document.getElementById('projSub').textContent = [S.project.location, S.project.owner, S.project.date].filter(Boolean).join(' · ');
   const n = S.meta.changesSinceFile || 0;
-  const appr = S.audit.approval, stale = appr && appr.hashes && appr.hashes.all !== getAud().hashes.all;
+  const appr = S.audit.approval, stale = appr && appr.hashes && appr.hashes.all !== getAud().hashes.all, latest = S.revisions[S.revisions.length - 1];
+  const draftChanged = latest && latest.results.hashes && latest.results.hashes.all !== getAud().hashes.all;
   document.getElementById('revChip').innerHTML = appr
-    ? `<span class="chip ${stale ? 'warn' : 'good'}" title="Approved ${esc(appr.at)} by ${esc(appr.by)}. Full revision control is added in Phase 5.">Rev ${esc(S.meta.revision)} · ${stale ? 'Approved – changed since' : 'Approved'}</span>`
-    : `<span class="chip" title="Revision control (snapshots, review) is added in Phase 5. This is the working draft.">Rev ${esc(S.meta.revision)} · Working draft</span>`;
+    ? `<button class="chip ${stale ? 'warn' : 'good'}" data-act="tab:revisions" title="Approved ${esc(appr.at)} by ${esc(appr.by)}">Rev ${esc(appr.revisionNo ?? S.meta.revision)} · ${stale ? 'Approved – changed since' : 'Approved'}</button>`
+    : latest ? `<button class="chip ${latest.status === 'submitted' ? 'warn' : ''}" data-act="tab:revisions" title="Latest revision: ${esc(REV_LABEL[latest.status])}">Rev ${esc(latest.no)} · ${esc(REV_LABEL[latest.status])}${draftChanged ? ' · draft changed' : ''}</button>`
+    : `<span class="chip" title="No revision has been created yet. This is the working draft.">Rev 0 · Working draft</span>`;
   let html;
   if (store.ok === false) html = `<span class="chip bad" title="${esc(store.error)}"><span class="dot"></span>Not saved</span>`;
   else if (store.at) html = `<span class="chip good" title="Autosaved in this browser"><span class="dot"></span>Saved ${esc(clock(store.at))}</span>`;
@@ -2482,7 +2693,7 @@ function renderNow() {
   document.getElementById('nav').innerHTML = TABS.filter(([k]) => k !== 'selftest').map(([k, n, ic]) =>
     `<button data-act="tab:${k}" ${k === cur ? 'aria-current="page"' : ''}>${icon(ic)}<span>${esc(n)}</span>${k === 'elements' ? `<span class="count">${S.elements.length}</span>` : k === 'audit' && getAud().counts.critical ? `<span class="count" style="color:var(--bad)">${getAud().counts.critical}</span>` : ''}</button>`).join('');
   document.getElementById('sideFoot').innerHTML = `<a href="#" data-act="tab:selftest">Self-test</a> · v${APP_VERSION} · engine ${esc(S.engineVersion)}`;
-  const fn = {dashboard: vDashboard, audit: vAudit, labor: vLabor, project: vProject, elements: vElements, rebar: vRebar, boq: vBOQ, prices: vPrices, factors: vFactors, selftest: vSelfTest}[cur] || vDashboard;
+  const fn = {dashboard: vDashboard, audit: vAudit, revisions: vRevisions, labor: vLabor, project: vProject, elements: vElements, rebar: vRebar, boq: vBOQ, prices: vPrices, factors: vFactors, selftest: vSelfTest}[cur] || vDashboard;
   document.getElementById('view').innerHTML = fn();
   if (cur === 'boq' && focusDiv) { const el = document.getElementById('div-' + focusDiv); if (el) { el.open = true; el.scrollIntoView({block: 'start'}); } focusDiv = null; }
 }
@@ -2776,8 +2987,8 @@ function boqHtmlTable(forExcel) {
   if (!forExcel) return table;
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>td,th{border:.5pt solid #ccc;font-family:Calibri}.div td{background:#dce6f5;font-weight:bold}.sub td,.tot td{font-weight:bold}.n{text-align:right}</style></head><body>${table}</body></html>`;
 }
-function boqCsv() {
-  const b = buildBOQ(S), q = v => `"${noFormula(v).replace(/"/g, '""')}"`, out = [['Item', 'Description', 'Qty', 'Unit', 'Unit cost', 'Amount']];
+function boqCsv(stored) {
+  const b = stored || buildBOQ(S), q = v => `"${noFormula(v).replace(/"/g, '""')}"`, out = [['Item', 'Description', 'Qty', 'Unit', 'Unit cost', 'Amount']];
   let i = 0;
   for (const r of b.rows) {
     if (r.kind === 'div') { i = 0; out.push(['', r.text]); }
@@ -2894,6 +3105,74 @@ function vPrices() {
       <td class="n">${inputB(`price:${c}:price`, m.price, 'number', 'style="max-width:130px;text-align:right"')}</td><td>${src(m)}</td></tr>`; }).join('')}
     </table></div></div>
   <div class="card"><h2>Labor and equipment</h2><p class="muted" style="margin:0">Labor rates, crews, wages, pakyaw and equipment rental are set on the <a href="#" data-act="tab:labor">Labor &amp; equipment</a> tab.</p></div></div>`;
+}
+
+// ---- Revisions
+function vRevisions() {
+  const revs = S.revisions, user = userName(), au = getAud(), latest = revs[revs.length - 1];
+  const changed = !latest || !latest.results.hashes || latest.results.hashes.all !== au.hashes.all;
+  const pill = st => `<span class="pill ${st === 'approved' ? 'good' : st === 'submitted' ? 'warn' : st === 'draft' ? 'bad' : ''}">${esc(REV_LABEL[st])}</span>`;
+  const view = revByNo(revSel.view) || latest;
+  const when = t => esc(String(t || '').slice(0, 16).replace('T', ' '));
+  const list = revs.length ? `<div class="tbl-wrap"><table><tr><th>Rev</th><th>Description</th><th>Created</th><th>Status</th><th class="n">Total</th><th>Findings at creation</th><th>Integrity</th><th></th></tr>
+    ${revs.slice().reverse().map(r => `<tr data-rev="${r.no}" ${view && view.no === r.no ? 'style="background:var(--accent-soft)"' : ''}><td><b>${r.no}</b></td><td>${esc(r.description)}${r.basedOn !== null && r.basedOn !== undefined && r.basedOn !== r.no - 1 ? `<div class="muted" style="font-size:11px">based on Rev ${esc(r.basedOn)}</div>` : ''}</td><td>${when(r.createdAt)}<div class="muted" style="font-size:11px">${esc(r.createdBy)}</div></td><td>${pill(r.status)}</td>
+      <td class="n">${esc(peso(r.results.totals.grand))}</td><td class="muted" style="font-size:12px">${esc(r.audit.counts ? `${r.audit.counts.critical} critical · ${r.audit.counts.major} major` : '')}</td>
+      <td>${revisionIntact(r) ? '<span class="pill good">✓ intact</span>' : '<span class="pill bad">✕ failed</span>'}</td>
+      <td class="row"><button class="btn sm" data-act="revView" data-arg="${r.no}">Open</button><button class="btn sm" data-act="revExport" data-arg="${r.no}">CSV</button></td></tr>`).join('')}</table></div>` : '<p class="muted">No revisions yet. Submit the working draft to create Revision 1.</p>';
+  let detail = '';
+  if (view) {
+    const v = revVerified[view.no];
+    detail = `<div class="card"><div class="row between"><h2 style="margin:0">Revision ${view.no} ${pill(view.status)}</h2>
+      <div class="row">${view.status === 'submitted' ? `<button class="btn pri" data-act="revApprove" data-arg="${view.no}" ${user ? '' : 'disabled'}>Approve</button><button class="btn" data-act="revReturn" data-arg="${view.no}">Return to draft</button>` : ''}
+      <button class="btn" data-act="revRestore" data-arg="${view.no}">Restore as new revision</button><button class="btn" data-act="revVerify" data-arg="${view.no}">Recalculate with current engine</button><button class="btn" data-act="revExport" data-arg="${view.no}">Export CSV</button></div></div>
+      <p style="margin:8px 0 0">${esc(view.description)}</p>
+      <div class="facts" style="margin-top:10px">
+        <div class="fact"><div class="k">Total (as created)</div><div class="v">${esc(peso(view.results.totals.grand))}</div><div class="s">direct ${esc(peso(view.results.totals.direct))}</div></div>
+        <div class="fact"><div class="k">Created</div><div class="v" style="font-size:14px">${when(view.createdAt)}</div><div class="s">by ${esc(view.createdBy)}</div></div>
+        <div class="fact"><div class="k">Calculated with</div><div class="v" style="font-size:14px">engine ${esc(view.versions.engine)}</div><div class="s">modules ${esc(view.versions.modules)} · labor ${esc(view.versions.labor)} · audit ${esc(view.versions.audit)} · code ${esc(String(view.versions.engineCode).slice(0, 8))}</div></div>
+        <div class="fact"><div class="k">Snapshot</div><div class="v" style="font-size:14px">${revisionIntact(view) ? '✓ intact' : '✕ integrity failed'}</div><div class="s">hash ${esc(String(view.snapshotHash).slice(0, 16))}</div></div>
+      </div>
+      ${v ? `<div class="note ${v.match ? 'info' : ''}" id="revVerifyResult">${v.match ? `✓ Recalculation with the current engine reproduces the stored totals exactly${v.sameEngine ? '' : ' (the engine code has changed since, but the results are the same)'}.` : `▲ The current engine gives different totals: ${v.diffs.map(d => `${esc(d.k)} stored ${esc(peso(d.stored))}, now ${esc(peso(d.now))}`).join('; ')}. The stored (approved) figures remain the record.`}</div>` : ''}
+      <div class="g-2" style="margin-top:12px">
+        <div><h3>Status history</h3><div class="tbl-wrap"><table><tr><th>When</th><th>Who</th><th>Change</th><th>Note</th></tr>${view.statusLog.map(l => `<tr><td>${when(l.at)}</td><td>${esc(l.by)}</td><td>${l.from ? esc(REV_LABEL[l.from] || l.from) + ' → ' : ''}${esc(REV_LABEL[l.to] || l.to)}</td><td>${esc(l.note)}</td></tr>`).join('')}</table></div></div>
+        <div><h3>Reviewer comments</h3>${view.comments.length ? view.comments.map(c => `<div class="find" style="--c:var(--accent)"><div class="muted" style="font-size:12px">${when(c.at)} · ${esc(c.by)}</div><div>${esc(c.text)}</div></div>`).join('') : '<p class="muted">No comments.</p>'}
+          <textarea id="revComment" rows="2" placeholder="Add a comment (recorded with your name; comments cannot be edited or deleted)"></textarea>
+          <div style="margin-top:6px"><button class="btn sm" data-act="revComment" data-arg="${view.no}" ${user ? '' : 'disabled'}>Add comment</button></div></div>
+      </div></div>`;
+  }
+  // comparison
+  let cmp = '';
+  if (revs.length) {
+    const A = revSel.a ?? (revs.length > 1 ? revs[revs.length - 2].no : revs[0].no), Bs = revSel.b ?? 'work';
+    const side = x => { if (x === 'work') return {st: S, boq: buildBOQ(S), label: 'Working draft'}; const r = revByNo(x) || latest; return {st: revisionState(r), boq: r.results, label: 'Rev ' + r.no}; };
+    const a = side(A), b = side(Bs), d = diffBOQ(a.boq, b.boq), els = diffElements(a.st, b.st), inp = diffInputs(a.st, b.st);
+    const opts = sel => [...revs.map(r => [String(r.no), `Rev ${r.no} – ${REV_LABEL[r.status]}`]), ['work', 'Working draft']].map(([k, n]) => `<option value="${k}" ${String(sel) === k ? 'selected' : ''}>${esc(n)}</option>`).join('');
+    const sgn = x => (Math.abs(x) < 0.005 ? '' : x > 0 ? '+' : '−') + peso(Math.abs(x) < 0.005 ? 0 : Math.abs(x));   // sub-centavo noise shows as 0
+    const fv = v => v === null || v === undefined ? '–' : typeof v === 'number' ? fmt(v, Number.isInteger(v) ? 0 : 3) : typeof v === 'object' ? JSON.stringify(v) : String(v);
+    cmp = `<div class="card"><div class="row between"><h2 style="margin:0">Compare</h2>
+      <div class="row"><select id="cmpA" style="width:auto">${opts(A)}</select><span>→</span><select id="cmpB" style="width:auto">${opts(Bs)}</select><button class="btn" data-act="revCompare">Compare</button></div></div>
+      <div class="facts" style="margin-top:12px" id="cmpSummary">
+        <div class="fact"><div class="k">Total project cost</div><div class="v">${esc(sgn(d.totals.grand.d))}</div><div class="s">${esc(peso(d.totals.grand.a))} → ${esc(peso(d.totals.grand.b))}</div></div>
+        <div class="fact"><div class="k">Direct cost</div><div class="v">${esc(sgn(d.totals.direct.d))}</div><div class="s">${esc(peso(d.totals.direct.a))} → ${esc(peso(d.totals.direct.b))}</div></div>
+        <div class="fact"><div class="k">Quantity-driven</div><div class="v" data-cmp="qty">${esc(sgn(d.summary.quantityDriven))}</div><div class="s">(new qty − old qty) × old rate</div></div>
+        <div class="fact"><div class="k">Price-driven</div><div class="v" data-cmp="price">${esc(sgn(d.summary.priceDriven))}</div><div class="s">(new rate − old rate) × new qty</div></div>
+      </div>
+      <div class="tbl-wrap" style="margin-top:10px"><table><tr><th></th><th class="n">Change</th><th class="n">Quantity-driven</th><th class="n">Price-driven</th></tr>${['material', 'labor', 'equipment'].map(k => `<tr><td>${k[0].toUpperCase() + k.slice(1)}</td><td class="n">${esc(sgn(d.summary.byKind[k].da))}</td><td class="n">${esc(sgn(d.summary.byKind[k].qEff))}</td><td class="n">${esc(sgn(d.summary.byKind[k].pEff))}</td></tr>`).join('')}
+        <tr class="sub"><td>Direct cost</td><td class="n">${esc(sgn(d.summary.direct))}</td><td class="n">${esc(sgn(d.summary.quantityDriven))}</td><td class="n">${esc(sgn(d.summary.priceDriven))}</td></tr></table></div>
+      <h3>Elements (${els.length} changed)</h3>${els.length ? `<div class="tbl-wrap"><table id="cmpElements"><tr><th>Change</th><th>Mark</th><th>Type</th><th>Level</th><th>Details</th></tr>${els.map(e => `<tr><td><span class="pill ${e.status === 'added' ? 'good' : e.status === 'removed' ? 'bad' : 'warn'}">${esc(e.status)}</span></td><td><b>${esc(e.mark)}</b></td><td>${esc((TYPES[e.type] || {}).name || e.type)}</td><td>${esc(e.level)}</td><td style="font-size:12px">${e.changes.map(([k, f, t]) => `${esc(k)}: ${esc(fv(f))} → <b>${esc(fv(t))}</b>`).join('<br>')}</td></tr>`).join('')}</table></div>` : '<p class="muted">No element changes.</p>'}
+      <h3>Prices, rates, factors and settings (${inp.length} changed)</h3>${inp.length ? `<div class="tbl-wrap"><table><tr><th>Area</th><th>Item</th><th>From</th><th>To</th></tr>${inp.slice(0, 80).map(x => `<tr><td>${esc(x.area)}</td><td>${esc(x.path)}</td><td>${esc(fv(x.from))}</td><td><b>${esc(fv(x.to))}</b></td></tr>`).join('')}</table></div>${inp.length > 80 ? `<p class="muted">+${inp.length - 80} more</p>` : ''}` : '<p class="muted">No input changes.</p>'}
+      <h3>BOQ lines (${d.lines.length} changed)</h3>${d.lines.length ? `<div class="tbl-wrap"><table id="cmpLines"><tr><th>Item</th><th>Unit</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Change</th><th class="n">Qty-driven</th><th class="n">Price-driven</th></tr>${d.lines.slice(0, 100).map(l => `<tr><td>${esc(l.name)} <span class="pill">${esc(l.kind)}</span>${l.status !== 'changed' ? ` <span class="pill ${l.status === 'added' ? 'good' : 'bad'}">${esc(l.status)}</span>` : ''}</td><td>${esc(l.unit)}</td><td class="n">${esc(fmt(l.q0))} → ${esc(fmt(l.q1))}</td><td class="n">${esc(fmt(l.p0))} → ${esc(fmt(l.p1))}</td><td class="n">${esc(sgn(l.da))}</td><td class="n">${esc(sgn(l.qEff))}</td><td class="n">${esc(sgn(l.pEff))}</td></tr>`).join('')}</table></div>` : '<p class="muted">No BOQ changes.</p>'}
+    </div>`;
+  }
+  return `<div class="stack">
+  <div class="card"><h2>Working draft</h2>
+    <p class="muted" style="margin-top:0">${latest ? `Based on Revision ${esc(S.meta.basedOn ?? latest.no)}. ${changed ? 'The draft has changes that are not in any revision yet.' : 'No changes since Revision ' + latest.no + '.'}` : 'No revision yet.'} Revisions are read-only snapshots of every input with the results computed at the time; they are never overwritten.</p>
+    <div class="row"><input id="revDesc" placeholder="What changed? (required)" style="max-width:520px">
+      <button class="btn pri" data-act="revSubmit" ${user && changed ? '' : 'disabled'}>Submit as Revision ${revs.reduce((m, r) => Math.max(m, r.no), 0) + 1}</button></div>
+    ${!user ? '<p class="err">Enter your name on the Audit tab (Approval panel) to submit, review or comment.</p>' : ''}
+  </div>
+  <div class="card"><h2>Revisions (${revs.length})</h2>${list}</div>
+  ${detail}${cmp}</div>`;
 }
 
 // ---- Labor & equipment

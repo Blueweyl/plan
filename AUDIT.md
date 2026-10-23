@@ -339,3 +339,38 @@ A separate `<script id="labor">` block adds labor costing methods. Each labor it
 - Productivity outputs and crew compositions are your inputs; none are suggested.
 - Statutory labor burden defaults to 0 % and must be set if your rates are basic wages.
 - Equipment fuel and operator costs are not modelled separately. Include them in the rental rate.
+
+---
+
+## 9. Status after Phase 5: revision control (2026-10-23)
+
+A `<script id="revisions">` block of pure functions provides the snapshot and the comparison, both tested in Node. The app adds a **Revisions** tab.
+
+**How revisions work:**
+- **Immutable snapshots.** A revision stores:
+  - a JSON snapshot of every input: project, settings, levels, elements, prices, labor and labor setup, factors with their provenance, takeoff register, quarantine, audit policy and acknowledgements
+  - the snapshot's hash
+  - the results computed at that moment: totals, division totals, every BOQ row and the input hashes
+  - the versions used: app, engine, modules, labor, audit, revisions, plus a hash of the calculation code
+
+  Later edits never touch a revision (P5-05). A changed snapshot fails its integrity check: critical rule **R-REV-001**, and that revision cannot be approved or restored (P5-09).
+- **Historical reproducibility.** An approved revision always shows and exports its **stored** figures, which come from its own prices, factors and engine version.
+  - "Recalculate with current engine" re-runs the snapshot and reports whether the totals match. A mismatch is reported; the stored record is never replaced (P5-11).
+  - The revision CSV carries its status in the header: APPROVED / SUPERSEDED / SUBMITTED / RETURNED (P5-10).
+- **Statuses.** Revisions move from Submitted to Approved or Returned to draft (a reason is required). Approving a revision marks the previously approved one **Superseded**.
+  - Approval is blocked while the revision has critical findings (P5-06, P5-07).
+  - The Audit-tab approval from Phase 2 now creates an approved revision (P5-13).
+  - Revoking an approval returns that revision to draft.
+- **Restore as a new revision.** The working draft is backed up, then replaced by the old revision's inputs, and a new Submitted revision "Restored from Rev N" is created. History is untouched (P5-08).
+- **Reviewer comments and status history** are append-only and record the person's name and the time. There is no way to edit or delete them (P5-12).
+- **Comparison.** Any two revisions, or a revision and the working draft, can be compared:
+  - elements: added, removed, and changed field by field
+  - prices, rates, factors and settings
+  - every BOQ line, by material, labor and equipment
+
+  Each change is split exactly into a quantity-driven part, (q₁ − q₀)·p₀, and a price-driven part, (p₁ − p₀)·q₁, and the two add up to the change (P5-01…04). For %-of-materials labor, the materials base counts as the quantity and the percentage as the price.
+
+### Remaining risks
+- Integrity uses a 64-bit FNV hash, which detects edits but is **not** cryptographic. In a single offline file, anyone with the file can rewrite both the snapshot and its hash. Real immutability needs the server-side store in Phase 6.
+- Names come from the local name field. Separating submitter, reviewer and approver needs Phase 6 roles; for now one person can submit and approve.
+- One revision of the sample project takes about 44 KB, so browser storage (about 5 MB) holds roughly 100 revisions. Storage failures are shown, and project files have no such limit.
