@@ -16,6 +16,8 @@ const EXPORTS = ['DIAS', 'DIVS', 'DIV_NAME', 'MATERIALS', 'LABOR', 'CEIL_UNITS',
 const AUDITOR_EXPORTS = ['AUDIT_VERSION', 'RULES', 'SEV_ORDER', 'TAKEOFF_SCOPES', 'TAKEOFF_STATUS', 'EXPORT_POLICIES', 'AUDIT_LIMITS',
   'defaultAuditState', 'hash64', 'canon', 'inputHashes', 'factorsUsed', 'elementChecks', 'reconcileChecks', 'runAudit', 'exportBanner'];
 
+const MODULE_EXPORTS = ['MODULES_VERSION', 'MOD_DIVS', 'MODULE_FACTORS', 'MODULE_FACTOR_META', 'EQUIPMENT_CODES', 'collectPriced', 'runModuleSelfTests'];
+
 export function engineSource(file = APP_HTML, block = 'engine') {
   const html = fs.readFileSync(file, 'utf8');
   const m = html.match(new RegExp(`<script id="${block}">([\\s\\S]*?)<\\/script>`));
@@ -24,10 +26,15 @@ export function engineSource(file = APP_HTML, block = 'engine') {
 }
 
 // Engine only (also works on original/estimator.v1.html, which has no auditor).
-// Pass {auditor: true} to load the auditor block into the same context.
+// Pass {auditor: true} to also load the modules and auditor blocks (the full app logic).
 export function loadEngine(file = APP_HTML, {auditor = false} = {}) {
   let src = engineSource(file), names = EXPORTS;
-  if (auditor) { src += '\n' + engineSource(file, 'auditor'); names = EXPORTS.concat(AUDITOR_EXPORTS); }
+  if (auditor) {
+    let mods = '';
+    try { mods = engineSource(file, 'modules'); } catch (e) { /* files before Phase 3 have no modules block */ }
+    src += '\n' + mods + '\n' + engineSource(file, 'auditor');
+    names = EXPORTS.concat(AUDITOR_EXPORTS, mods ? MODULE_EXPORTS : []);
+  }
   const ctx = vm.createContext({});
   return vm.runInContext(src + `\n;({${names.join(',')}})`, ctx, {filename: path.basename(file) + '#engine'});
 }

@@ -4,7 +4,7 @@
 Requirements: Node 22+ and Playwright with Chromium. In the cloud environment both are preinstalled; locally, run `npm i -g playwright && npx playwright install chromium`.
 
 ```
-npm test                         # every suite (113 tests after Phase 2)
+npm test                         # every suite (129 tests after Phase 3)
 npm run test:engine              # golden master only, no browser needed
 node scripts/make-baseline.mjs --check   # compare engine + exports to BASELINE_RESULTS.json
 node tests/selftest.mjs [dir]    # UI smoke test + screenshots
@@ -21,6 +21,7 @@ node tests/selftest.mjs [dir]    # UI smoke test + screenshots
 | `tests/migration.test.mjs` | Compatibility (browser) | COMPAT-01…07: v1 files keep loading with identical results. MIG-01…08: the v2 migration guarantees (quarantine, orphan recovery, corrupt-storage backup, XSS/prototype keys, forward compatibility with v1, pre-v2 backup). | 18 |
 | `tests/phase1.test.mjs` | Dashboard & safety (browser) | KPIs and division cards equal engine totals; every ₱ on the dashboard is a computed value; every nav item and control is wired; save failures visible; Open confirms with backup; 18-vector XSS corpus; local date; light/dark; no horizontal scroll at 375/768/1280 px; keyboard nav; empty state; revision/save chips; coefficient verification. | 21 |
 | `tests/phase2.test.mjs` | Auditor (Node + browser) | Exact findings for the sample project; required fields on every finding; stable and unique IDs; determinism and purity; a positive and a negative case for each rule; `factorsUsed` completeness by perturbing every factor; reconciliation against a one-centavo tamper; acknowledgement, approval, staleness; all three export policies; draft watermark on CSV/Excel/print; formula-injection neutralisation; editor live validation; takeoff register. | 42 |
+| `tests/phase3.test.mjs` | Calculators (Node + browser) | Legacy golden master identical with the modules loaded, and every legacy BOQ row identical when module items are present; 10 hand-calculated examples; schema/doc/trace for each module; empty inputs never priced; optional zeros and relevance; missing coefficient → item omitted + R-COEF-003; ordered divisions and reconciliation; element-priced items × quantity and %-labor; unpriced item critical; `factorsUsed` completeness by perturbation; plausibility checks; deductions, conversions, waste and rounding; equipment opt-in; Phase 2 file migration; every module added through the editor. | 16 |
 | `tests/audit-probes.test.mjs` | Issue reproductions | One test per **open** audit finding. Each passes while the issue exists. | 4 |
 | `estimator.html` → Self-test | Hand calculations | 8 worked examples: column, footing, laps/commercial lengths, CHB wall, gypsum ceiling, drywall, openings parser, bar weight. | 8 |
 
@@ -40,7 +41,7 @@ When a phase fixes a finding:
 |---|---|
 | 1 Dashboard | **Done** (`tests/phase1.test.mjs`): KPI values equal `buildBOQ` totals; every nav item opens a real view; no fixed numbers in the DOM (scan for literals); save status reacts to a simulated storage failure; light/dark contrast (axe); 768 px and 1280 px screenshots; keyboard tab order. |
 | 2 Auditor | **Done** (`tests/phase2.test.mjs`). |
-| 3 Calculators | Hand-calculated worked examples per module (net, deductions, waste, purchase); unit conversions; golden master extended to the new types. Existing 18-element baseline unchanged. |
+| 3 Calculators | **Done** (`tests/phase3.test.mjs`). |
 | 4 Labor/equipment | Same BOQ under each costing method with no double counting; switching methods round-trips; pakyaw and crew arithmetic. |
 | 5 Revisions | Snapshots are immutable (hash); diff reports quantity changes vs price changes; restore creates a new revision; an approved revision reproduces exactly with its own factors and engine version. |
 | 6 Sheets backend | Apps Script unit tests (gas-local / clasp); optimistic-concurrency conflict; idempotent replay; role matrix; soft delete; pagination. |

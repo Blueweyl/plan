@@ -32,7 +32,7 @@ test('every tab renders the sample project without page errors', async () => {
       await app.page.evaluate(t => App.tab(t), t);
       assert.ok((await app.page.textContent('#view')).length > 50, `tab ${t} rendered`);
     }
-    assert.equal(await app.page.textContent('#selftest-summary'), '8/8 passed');
+    assert.match(await app.page.textContent('#selftest-summary'), /^(\d+)\/\1 passed$/);
     assert.deepEqual(app.errors, []);
     await app.close();
   } finally { await browser.close(); }

@@ -62,7 +62,7 @@ test('P1-04 every navigation item opens a working view', async () => {
     assert.ok((await app.page.textContent('#view')).trim().length > 40);
   }
   await app.page.click('#sideFoot a');
-  assert.equal(await app.page.textContent('#selftest-summary'), '8/8 passed');
+  assert.match(await app.page.textContent('#selftest-summary'), /^(\d+)\/\1 passed$/);
   assert.deepEqual(app.errors, []);
   await app.close();
 });

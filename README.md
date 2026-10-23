@@ -16,6 +16,9 @@ Open it in Chrome or Edge by double-clicking. It needs no install, no server and
 - **BOQ:** materials plus labor (₱ per unit or % of materials), then OCM, profit, contingency and VAT.
   - Exports to Excel, CSV, or PDF (through Print).
 
+## Phase 3 calculators
+Excavation & backfill, roofing, floor/wall tiles, waterproofing, painting, doors & windows, structural steel, and plumbing and electrical schedules. See `MODULES.md`. Their coefficients start **not set** and must be entered (from Fajardo or the product data sheet) before the quantities that need them reach the BOQ. Specified products are priced inside each element.
+
 ## Workflow
 0. **Dashboard:** total cost, rebar, concrete and CHB at a glance; cost by division and level; what needs attention; quick actions. Light/dark toggle in the top bar.
 1. **Project & data tab:** set the project info and levels/floors.

@@ -11,7 +11,8 @@
   --accent:#1f5fbf; --accent-ink:#ffffff; --accent-soft:#e8f0fc;
   --orange:#c45c00; --orange-soft:#fff1e3;
   --good:#1d8a4e; --good-soft:#e5f5ec; --warn:#9a6700; --warn-soft:#fff6dd; --bad:#c62828; --bad-soft:#fde8e8;
-  --d-REBAR:#2a78d6; --d-CONC:#1baf7a; --d-FORM:#eda100; --d-MAS:#e34948; --d-PART:#6250d6; --d-CEIL:#e87ba4;
+  --d-REBAR:#2a78d6; --d-CONC:#1baf7a; --d-FORM:#eda100; --d-MAS:#e34948; --d-PART:#6250d6; --d-CEIL:#e87ba4; --d-OTHER:#6b7686;
+  --d-EARTH:var(--d-OTHER); --d-ROOF:var(--d-OTHER); --d-TILE:var(--d-OTHER); --d-WP:var(--d-OTHER); --d-PAINT:var(--d-OTHER); --d-DW:var(--d-OTHER); --d-STEEL:var(--d-OTHER); --d-PLUMB:var(--d-OTHER); --d-ELEC:var(--d-OTHER);
   --shadow:0 1px 2px rgba(20,30,50,.06),0 2px 8px rgba(20,30,50,.05); --radius:10px;
 }
 :root[data-theme="dark"]{
@@ -19,7 +20,7 @@
   --accent:#5b9cf5; --accent-ink:#0d1420; --accent-soft:#1f2c42;
   --orange:#ff9a3d; --orange-soft:#3a2a1a;
   --good:#5cc48a; --good-soft:#1c3327; --warn:#e6b450; --warn-soft:#33291a; --bad:#f2847c; --bad-soft:#3a2222;
-  --d-REBAR:#3987e5; --d-CONC:#199e70; --d-FORM:#c98500; --d-MAS:#d63f4a; --d-PART:#9085e9; --d-CEIL:#d55181;
+  --d-REBAR:#3987e5; --d-CONC:#199e70; --d-FORM:#c98500; --d-MAS:#d63f4a; --d-PART:#9085e9; --d-CEIL:#d55181; --d-OTHER:#8b95a5;
   --shadow:none;
 }
 *{box-sizing:border-box}
@@ -845,6 +846,457 @@ function runSelfTests() {
 </script>
 
 <!-- ===================================================================== -->
+<!-- MODULES: Phase 3 calculators registered into the engine tables        -->
+<!-- ===================================================================== -->
+<script id="modules">
+'use strict';
+// Phase 3 calculators. They register into the engine's tables (TYPES, DIVS,
+// MATERIALS, LABOR, defaultFactors, buildBOQ) without changing any existing
+// formula: legacy element types, catalog entries and factors are untouched,
+// and buildBOQ returns the legacy result unchanged when no module item exists.
+// Coefficients that would have to come from a book or a product data sheet
+// start as null ("not set"); a calculation that needs one omits that material
+// and reports it (auditor rule R-COEF-003) instead of guessing.
+const MODULES_VERSION = '1.0.0';
+const MOD_DIVS = [['EARTH', 'Earthworks'], ['ROOF', 'Roofing Works'], ['TILE', 'Tile Works'], ['WP', 'Waterproofing Works'], ['PAINT', 'Painting Works'],
+  ['DW', 'Doors & Windows'], ['STEEL', 'Structural Steel Works'], ['PLUMB', 'Plumbing Works'], ['ELEC', 'Electrical Works']];
+for (const d of MOD_DIVS) { DIVS.push(d); DIV_NAME[d[0]] = d[1]; }
+// New catalog entries have no price (0): they are reported as unpriced until set.
+MATERIALS.push(['TADH', 'Tile adhesive', 'bag', 0], ['TGRT', 'Tile grout', 'kg', 0], ['RSCR', 'Roofing screws', 'pc', 0],
+  ['STL', 'Structural steel (as specified)', 'kg', 0], ['BOLT', 'Bolts (as specified)', 'pc', 0]);
+LABOR.push(
+  ['L_EXC', 'EARTH', 'Labor – excavation', 'm³', 'unit', 0], ['L_BF', 'EARTH', 'Labor – backfill and compaction', 'm³', 'unit', 0],
+  ['L_HAUL', 'EARTH', 'Disposal / hauling of surplus (loose volume)', 'm³', 'unit', 0], ['E_EXC', 'EARTH', 'Equipment – excavator', 'm³', 'unit', 0],
+  ['L_ROOF', 'ROOF', 'Labor – roofing installation', 'm²', 'unit', 0],
+  ['L_TILE', 'TILE', 'Labor – tile setting', 'm²', 'unit', 0], ['L_SKIRT', 'TILE', 'Labor – tile skirting', 'm', 'unit', 0],
+  ['L_WP', 'WP', 'Labor – waterproofing', 'm²', 'unit', 0], ['L_PAINT', 'PAINT', 'Labor – painting', 'm²', 'unit', 0],
+  ['L_DWINST', 'DW', 'Labor – door / window installation', 'set', 'unit', 0],
+  ['L_STEEL', 'STEEL', 'Labor – steel fabrication and erection', 'kg', 'unit', 0], ['E_CRANE', 'STEEL', 'Equipment – crane / lifting', 'hr', 'unit', 0],
+  ['L_PLUMB', 'PLUMB', 'Labor – plumbing installation', '%', 'pct', 0], ['L_ELEC', 'ELEC', 'Labor – electrical installation', '%', 'pct', 0]);
+const EQUIPMENT_CODES = new Set(['E_EXC', 'E_CRANE']);
+
+const MODULE_FACTORS = () => ({
+  earth: {swellPct: null},
+  roof: {screwsPerSqm: null},
+  tile: {adhesiveKgPerSqm: null, adhesiveBagKg: null, groutDensity: null},
+  waterproof: {liquidKgPerSqmPerCoat: null, primerLPerSqm: null},
+  paint: {primerCoverage: null, finishCoverage: null, puttyKgPerSqm: null},
+  steel: {density: 7850},
+});
+// [source, note, verified, label]
+const MODULE_FACTOR_META = {
+  'earth.swellPct': ['Not set – soil-specific (geotechnical report or Fajardo earthwork table)', 'Increase of excavated soil volume when loosened, % of bank volume.', false, 'Swell (bulking) of excavated soil (%)'],
+  'roof.screwsPerSqm': ['Not set – roofing manufacturer installation guide', '', false, 'Roofing screws per m² of roof'],
+  'tile.adhesiveKgPerSqm': ['Not set – adhesive data sheet or Fajardo tile table', '', false, 'Tile adhesive (kg per m²)'],
+  'tile.adhesiveBagKg': ['Not set – adhesive bag size from supplier', '', false, 'Tile adhesive bag size (kg)'],
+  'tile.groutDensity': ['Not set – grout data sheet', 'Used in grout kg = joint volume × density.', false, 'Grout density (kg/m³)'],
+  'waterproof.liquidKgPerSqmPerCoat': ['Not set – membrane data sheet', '', false, 'Liquid membrane per coat (kg/m²)'],
+  'waterproof.primerLPerSqm': ['Not set – primer data sheet', '', false, 'Waterproofing primer (L/m²)'],
+  'paint.primerCoverage': ['Not set – paint data sheet or Fajardo painting table', '', false, 'Primer coverage per coat (m²/L)'],
+  'paint.finishCoverage': ['Not set – paint data sheet or Fajardo painting table', '', false, 'Finish paint coverage per coat (m²/L)'],
+  'paint.puttyKgPerSqm': ['Not set – skim coat / putty data sheet', '', false, 'Skim coat / putty (kg/m²)'],
+  'steel.density': ['Physical property: carbon steel 7850 kg/m³', '', true, 'Steel density (kg/m³)'],
+};
+{
+  const base = defaultFactors;
+  defaultFactors = function () { return Object.assign(base(), MODULE_FACTORS()); };
+}
+
+// ---- helpers
+function mOut() { const o = newOut(); o.custom = []; o.trace = []; o.missing = []; return o; }
+function fac(o, F, path) {
+  const v = path.split('.').reduce((a, k) => (a == null ? a : a[k]), F);
+  if (v === null || v === undefined || !Number.isFinite(Number(v))) { if (!o.missing.includes(path)) o.missing.push(path); return null; }
+  return Number(v);
+}
+// trace keeps full precision; screens round for display only
+const tr = (o, label, formula, value, unit = '') => o.trace.push([label, formula, value, unit]);
+const priced = (o, div, name, unit, qty, rate) => o.custom.push({div, name, unit, qty, rate: Number(rate) || 0});
+const deductions = (o, text, gross) => {
+  const op = parseOpenings(text);
+  if (op.area) tr(o, 'Deductions', 'Σ W × H × count of openings', op.area, 'm²');
+  const net = Math.max(0, gross - op.area);
+  if (op.errors.length) o.info.push(['⚠ Unreadable openings', op.errors.join(', ')]);
+  return net;
+};
+const ZERO = (...k) => new Set(k);
+
+Object.assign(TYPES, {
+  excavation: {cat: 'Structural', name: 'Excavation & backfill', prefix: 'EX', div: 'EARTH', module: true, laborOnly: true,
+    fields: [SEC('Geometry'), SEL('mode', 'Shape', [['pit', 'Footing pit (rectangular)'], ['trench', 'Trench (linear)']], 'pit'),
+      N('L', 'Length (pit length or trench run)', 'm', 0), N('W', 'Bottom width (structure width)', 'm', 0), N('D', 'Depth', 'm', 0),
+      N('ws', 'Working space each side', 'm', 0), N('slope', 'Side slope, horizontal per 1 vertical (0 = vertical sides)', 'H:V', 0),
+      SEC('Backfill and disposal'), N('struct', 'Volume of structure below grade (deducted from backfill)', 'm³', 0),
+      CHK('haul', 'Dispose of surplus off site', true), CHK('equip', 'Include excavator (equipment)', false)],
+    allowZero: ZERO('ws', 'slope', 'struct'),
+    factors: i => i.haul ? ['earth.swellPct'] : [],
+    checks: i => {
+      const out = [];
+      if (i.D > 0 && i.slope > 3) out.push({rule: 'R-UNIT-001', path: 'slope', description: `Side slope ${i.slope}:1 is unusually flat; enter horizontal metres per 1 metre of depth.`, evidence: {slope: i.slope}, suggestion: 'Check the slope ratio.'});
+      return out;
+    },
+    calc(i, F) {
+      const o = mOut(), s = i.slope, D = i.D, b0 = i.W + 2 * i.ws;
+      let V;
+      if (i.mode === 'pit') {
+        const l0 = i.L + 2 * i.ws, A1 = l0 * b0, Am = (l0 + s * D) * (b0 + s * D), A2 = (l0 + 2 * s * D) * (b0 + 2 * s * D);
+        V = D / 6 * (A1 + 4 * Am + A2);
+        tr(o, 'Bottom area A1', '(L + 2·ws) × (W + 2·ws)', A1, 'm²'); tr(o, 'Mid-depth area Am', '(L + 2·ws + s·D) × (W + 2·ws + s·D)', Am, 'm²');
+        tr(o, 'Top area A2', '(L + 2·ws + 2·s·D) × (W + 2·ws + 2·s·D)', A2, 'm²'); tr(o, 'Excavation (prismoidal)', 'D / 6 × (A1 + 4·Am + A2)', V, 'm³');
+      } else {
+        const A = (b0 + s * D) * D; V = i.L * A;
+        tr(o, 'Trench section', '(W + 2·ws + s·D) × D', A, 'm²'); tr(o, 'Excavation', 'L × section', V, 'm³');
+      }
+      const bf = Math.max(0, V - i.struct), surplus = V - bf;
+      tr(o, 'Backfill (compacted, bank measure)', 'max(0, excavation − structure volume)', bf, 'm³');
+      tr(o, 'Surplus (bank measure)', 'excavation − backfill', surplus, 'm³');
+      if (V > 0) o.labor.push({div: 'EARTH', code: 'L_EXC', qty: V});
+      if (bf > 0) o.labor.push({div: 'EARTH', code: 'L_BF', qty: bf});
+      if (i.haul && surplus > 0) {
+        const sw = fac(o, F, 'earth.swellPct');
+        if (sw !== null) { const loose = surplus * (1 + sw / 100); tr(o, 'Disposal (loose measure)', 'surplus × (1 + swell% / 100)', loose, 'm³'); o.labor.push({div: 'EARTH', code: 'L_HAUL', qty: loose}); }
+      }
+      if (i.equip && V > 0) o.labor.push({div: 'EARTH', code: 'E_EXC', qty: V});
+      o.info.push(['Excavation', fmt(V, 3) + ' m³'], ['Backfill', fmt(bf, 3) + ' m³'], ['Surplus', fmt(surplus, 3) + ' m³ (bank)']);
+      if (i.struct > V && V > 0) o.info.push(['⚠ Structure volume', 'is larger than the excavation']);
+      return o;
+    },
+    doc: {measure: 'Net excavation to the lines of the pit/trench plus working space and side slope. Pit volume uses the prismoidal formula (exact for a pit with plane sloped sides). Trench ends are vertical.',
+      conversions: 'All inputs in metres; slope as horizontal metres per vertical metre.', net: 'Excavation V; backfill = max(0, V − structure volume); surplus = V − backfill (bank measure).',
+      deductions: 'Structure volume below grade (entered; not inferred from other elements).', waste: 'None (earthwork is measured net).', purchase: 'Disposal in loose measure = surplus × (1 + swell %).',
+      materials: 'None (fill material, if imported, is a separate item).', labor: 'Excavation m³, backfill m³, disposal m³ (loose).', equipment: 'Optional excavator, per m³ excavated.',
+      sources: 'Swell % is soil-specific: not set by default.'}},
+
+  roofing: {cat: 'Architectural', name: 'Roofing', prefix: 'RF', div: 'ROOF', module: true,
+    fields: [SEC('Roof plan'), SEL('form', 'Roof form', [['gable', 'Gable (2 slopes)'], ['shed', 'Shed / lean-to (1 slope)']], 'gable'),
+      N('L', 'Building length along the eave', 'm', 0), N('W', 'Building width (eave to eave)', 'm', 0), N('oh', 'Overhang at eaves and gables', 'm', 0), N('pitch', 'Roof pitch', 'deg', 0),
+      SEC('Roofing sheet (from the manufacturer)'), TXT('sdesc', 'Sheet description', '', 'e.g. long-span 0.4 mm pre-painted'), N('cw', 'Effective cover width', 'm', 0), N('sheetCost', 'Unit cost of sheet', '₱/m', 0),
+      N('ridgeLen', 'Ridge roll effective length', 'm', 0), N('ridgeCost', 'Unit cost of ridge roll', '₱/pc', 0), N('waste', 'Waste allowance', '%', 0),
+      SEC('Purlins (0 spacing = not in this item)'), N('psp', 'Purlin spacing along the slope', 'm', 0), N('pstock', 'Purlin stock length', 'm', 6), N('purlinCost', 'Unit cost per purlin', '₱/pc', 0),
+      SEC('Accessories'), CHK('gutter', 'Gutter along eaves', false), N('gutterCost', 'Unit cost of gutter', '₱/m', 0)],
+    allowZero: ZERO('oh', 'waste', 'psp'),
+    relevant: {ridgeLen: i => i.form === 'gable', ridgeCost: i => i.form === 'gable', pstock: i => i.psp > 0, purlinCost: i => i.psp > 0, gutterCost: i => !!i.gutter},
+    factors: () => ['roof.screwsPerSqm'],
+    checks: i => (i.pitch > 0 && (i.pitch < 1 || i.pitch > 75)) ? [{rule: 'R-UNIT-001', path: 'pitch', description: `Pitch ${i.pitch}° is outside 1–75°; enter the pitch in degrees.`, evidence: {pitch: i.pitch}, suggestion: 'Check the unit: degrees, not a ratio or percent.'}] : [],
+    calc(i, F) {
+      const o = mOut(), k = 1 / Math.cos(i.pitch * Math.PI / 180), slopes = i.form === 'gable' ? 2 : 1;
+      const run = i.form === 'gable' ? i.W / 2 + i.oh : i.W + 2 * i.oh, E = i.L + 2 * i.oh, Sl = run * k, A = slopes * E * Sl, w = 1 + i.waste / 100;
+      tr(o, 'Slope factor', '1 / cos(pitch)', k); tr(o, 'Eave length E', 'L + 2 × overhang', E, 'm');
+      tr(o, 'Horizontal run per slope', i.form === 'gable' ? 'W / 2 + overhang' : 'W + 2 × overhang', run, 'm'); tr(o, 'Slope length', 'run × slope factor', Sl, 'm');
+      tr(o, 'Roof area', 'slopes × E × slope length', A, 'm²');
+      if (i.cw > 0 && A > 0) { const rows = ceilE(E / i.cw), lm = slopes * rows * Sl * w; tr(o, 'Sheet rows per slope', 'ceil(E / effective cover width)', rows); tr(o, 'Roofing sheet', 'slopes × rows × slope length × (1 + waste)', lm, 'm'); priced(o, 'ROOF', ('Roofing sheet ' + (i.sdesc || '')).trim(), 'm', round(lm, 2), i.sheetCost); }
+      if (i.form === 'gable' && i.ridgeLen > 0 && E > 0) { const n = ceilE(E / i.ridgeLen * w); tr(o, 'Ridge roll', 'ceil(E / ridge effective length × (1 + waste))', n, 'pcs'); priced(o, 'ROOF', 'Ridge roll', 'pc', n, i.ridgeCost); }
+      if (A > 0) { const sc = fac(o, F, 'roof.screwsPerSqm'); if (sc !== null) { tr(o, 'Roofing screws', 'roof area × screws per m² × (1 + waste)', A * sc * w, 'pcs'); o.lines.push({div: 'ROOF', code: 'RSCR', qty: A * sc * w}); } }
+      if (i.psp > 0 && A > 0) { const rows = ceilE(Sl / i.psp) + 1, lm = slopes * rows * E, n = ceilE(lm * w / i.pstock); tr(o, 'Purlin rows per slope', 'ceil(slope length / spacing) + 1', rows); tr(o, 'Purlin length', 'slopes × rows × E', lm, 'm'); tr(o, 'Purlins', 'ceil(length × (1 + waste) / stock length)', n, 'pcs'); priced(o, 'ROOF', 'Purlin (stock ' + i.pstock + ' m)', 'pc', n, i.purlinCost); }
+      if (i.gutter && E > 0) { const lm = slopes * E * w; tr(o, 'Gutter', 'eaves × E × (1 + waste)', lm, 'm'); priced(o, 'ROOF', 'Gutter', 'm', round(lm, 2), i.gutterCost); }
+      if (A > 0) o.labor.push({div: 'ROOF', code: 'L_ROOF', qty: A});
+      o.info.push(['Roof area', fmt(A) + ' m²'], ['Slope length', fmt(Sl, 3) + ' m']);
+      return o;
+    },
+    doc: {measure: 'Roof area on the slope = slopes × (L + 2·overhang) × run × 1/cos(pitch). A uniform pitch is assumed; hips, valleys and dormers are not modelled (enter them as separate items).',
+      conversions: 'Pitch in degrees → slope factor 1/cos(θ).', net: 'Roof area (m²).', deductions: 'None (openings in roofs are rare; enter a separate negative-free item if needed).',
+      waste: 'Element waste % on sheets, ridge, screws, purlins, gutter.', purchase: 'Sheets in metres (cut-to-length: rows × slope length); ridge rolls and purlins in pieces (ceil).',
+      materials: 'Sheet, ridge roll, purlins and gutter priced per element (as specified); roofing screws from the price list.', labor: 'Roofing installation per m² of roof.', equipment: 'None.',
+      sources: 'Cover width, ridge roll length and unit costs from the product; screws per m² not set by default.'}},
+
+  tiles: {cat: 'Architectural', name: 'Floor / wall tiles', prefix: 'TL', div: 'TILE', module: true,
+    fields: [SEC('Surface'), SEL('surf', 'Surface', [['floor', 'Floor (length × width)'], ['wall', 'Wall (run length × height)']], 'floor'),
+      N('L', 'Length (floor) or run length (wall)', 'm', 0), N('W', 'Width (floor) or height (wall)', 'm', 0), TXT('open', 'Deductions (W x H x count)', '', 'e.g. 0.9x2.1x1'),
+      SEC('Tile (from the product)'), TXT('tdesc', 'Tile description', '', 'e.g. 600x600 glazed porcelain'), N('tw', 'Tile width', 'mm', 0), N('th', 'Tile length', 'mm', 0), N('tt', 'Tile thickness', 'mm', 0),
+      N('jw', 'Joint width', 'mm', 0), N('waste', 'Waste allowance', '%', 0), N('perBox', 'Tiles per box (0 = loose)', 'pcs', 0), N('tileCost', 'Unit cost per tile', '₱/pc', 0),
+      SEC('Skirting (floors)'), CHK('skirt', 'Tile skirting cut from the same tile', false), N('skh', 'Skirting height', 'mm', 0), N('doorW', 'Total door widths to deduct from skirting', 'm', 0)],
+    allowZero: ZERO('jw', 'waste', 'perBox', 'doorW'),
+    relevant: {tt: i => i.jw > 0, skh: i => i.surf === 'floor' && !!i.skirt, doorW: i => i.surf === 'floor' && !!i.skirt},
+    factors: i => ['tile.adhesiveKgPerSqm', 'tile.adhesiveBagKg', ...(i.jw > 0 ? ['tile.groutDensity'] : [])],
+    checks: i => {
+      const out = [];
+      for (const k of ['tw', 'th']) if (i[k] > 0 && (i[k] < 50 || i[k] > 3000)) out.push({rule: 'R-UNIT-001', path: k, description: `Tile size ${i[k]} mm is outside 50–3000 mm; enter tile sizes in millimetres.`, evidence: {field: k, value: i[k]}, suggestion: 'Check the unit: millimetres.'});
+      if (i.surf === 'floor' && i.skirt && i.skh > 0 && i.th > 0 && i.skh > i.th) out.push({rule: 'R-MOD-002', path: 'skh', description: `Skirting height ${i.skh} mm is larger than the tile length ${i.th} mm, so no skirting can be cut from this tile.`, evidence: {skh: i.skh, th: i.th}, suggestion: 'Check the skirting height or use a separate skirting item.'});
+      return out;
+    },
+    calc(i, F) {
+      const o = mOut(), w = 1 + i.waste / 100, gross = i.L * i.W;
+      tr(o, 'Gross area', i.surf === 'floor' ? 'L × W' : 'run length × height', gross, 'm²');
+      const net = deductions(o, i.open, gross);
+      tr(o, 'Net area', 'max(0, gross − deductions)', net, 'm²');
+      if (net > 0 && i.tw > 0 && i.th > 0) {
+        const mod = (i.tw + i.jw) * (i.th + i.jw) / 1e6, n = net / mod, buy = ceilE(n * w);
+        tr(o, 'Tile module', '(tile width + joint) × (tile length + joint) ÷ 1,000,000', mod, 'm²');
+        tr(o, 'Tiles (net)', 'net area / module', n, 'pcs'); tr(o, 'Tiles to buy', 'ceil(tiles × (1 + waste))', buy, 'pcs');
+        let sk = 0;
+        if (i.surf === 'floor' && i.skirt && i.skh > 0) {
+          const lm = Math.max(0, 2 * (i.L + i.W) - i.doorW), strips = floorE(i.th / i.skh);
+          tr(o, 'Skirting length', 'max(0, 2 × (L + W) − door widths)', lm, 'm'); tr(o, 'Skirting strips per tile', 'floor(tile length / skirting height)', strips);
+          if (strips >= 1 && lm > 0) { sk = ceilE(lm / (i.tw / 1000) / strips * w); tr(o, 'Tiles for skirting', 'ceil(length / tile width / strips × (1 + waste))', sk, 'pcs'); o.labor.push({div: 'TILE', code: 'L_SKIRT', qty: lm}); }
+        }
+        priced(o, 'TILE', ('Tiles ' + (i.tdesc || `${i.tw}×${i.th} mm`)).trim(), 'pc', buy + sk, i.tileCost);
+        if (i.perBox > 0) { tr(o, 'Boxes', 'ceil(tiles / tiles per box)', ceilE((buy + sk) / i.perBox), 'boxes'); o.info.push(['Boxes', ceilE((buy + sk) / i.perBox)]); }
+        const adh = fac(o, F, 'tile.adhesiveKgPerSqm'), bag = fac(o, F, 'tile.adhesiveBagKg');
+        if (adh !== null && bag !== null && bag > 0) { const bags = net * adh * w / bag; tr(o, 'Adhesive', 'net area × kg/m² × (1 + waste) / bag kg', bags, 'bags'); o.lines.push({div: 'TILE', code: 'TADH', qty: bags}); }
+        if (i.jw > 0 && i.tt > 0) {
+          const rho = fac(o, F, 'tile.groutDensity');
+          if (rho !== null) {
+            const perSqm = (i.tw + i.th) / (i.tw * i.th) * 1000 * (i.jw / 1000) * (i.tt / 1000) * rho, kg = net * perSqm * w;
+            tr(o, 'Grout per m²', '(tw + th) / (tw × th) × 1000 × joint (m) × thickness (m) × density', perSqm, 'kg/m²'); tr(o, 'Grout', 'net area × grout per m² × (1 + waste)', kg, 'kg');
+            o.lines.push({div: 'TILE', code: 'TGRT', qty: kg});
+          }
+        }
+        o.labor.push({div: 'TILE', code: 'L_TILE', qty: net});
+      }
+      o.info.push(['Net area', fmt(net) + ' m²']);
+      return o;
+    },
+    doc: {measure: 'Net tiled area = gross area (L × W, or run × height for walls) − deductions.', conversions: 'Tile sizes and joints in mm → m (÷1000).',
+      net: 'Tiles (net) = net area / ((tw + j)(th + j)/10⁶).', deductions: 'Openings entered as W x H x count.', waste: 'Element waste % on tiles, adhesive and grout.',
+      purchase: 'Tiles rounded up to whole pieces; boxes = ceil(tiles / per box); adhesive in bags; grout in kg.', materials: 'Tiles priced per element; adhesive and grout from the price list.',
+      labor: 'Tile setting per m² (net); skirting per metre.', equipment: 'None.', sources: 'Adhesive kg/m², bag size and grout density not set by default. Grout uses the joint-volume formula.'}},
+
+  waterproof: {cat: 'Architectural', name: 'Waterproofing', prefix: 'WP', div: 'WP', module: true,
+    fields: [SEC('Area'), N('L', 'Length', 'm', 0), N('W', 'Width', 'm', 0), N('up', 'Upturn height at walls', 'm', 0), N('perim', 'Upturn length (0 = full perimeter)', 'm', 0),
+      SEC('System (from the product)'), SEL('sys', 'System', [['liquid', 'Liquid-applied membrane (kg)'], ['sheet', 'Sheet / torch-on membrane (rolls)']], 'liquid'), TXT('pdesc', 'Product', '', ''),
+      N('coats', 'Number of coats', 'pcs', 0), N('pack', 'Package size (kg per pail, or m² per roll)', 'kg / m²', 0), N('lap', 'Lap allowance (sheet)', '%', 0), N('waste', 'Waste allowance', '%', 0),
+      N('unitCost', 'Unit cost per package', '₱', 0), CHK('primer', 'Primer', false), N('primerPack', 'Primer package size', 'L', 0), N('primerCost', 'Unit cost per primer package', '₱', 0)],
+    allowZero: ZERO('up', 'perim', 'lap', 'waste'),
+    relevant: {coats: i => i.sys === 'liquid', lap: i => i.sys === 'sheet', perim: i => i.up > 0, primerPack: i => !!i.primer, primerCost: i => !!i.primer},
+    factors: i => [...(i.sys === 'liquid' ? ['waterproof.liquidKgPerSqmPerCoat'] : []), ...(i.primer ? ['waterproof.primerLPerSqm'] : [])],
+    calc(i, F) {
+      const o = mOut(), w = 1 + i.waste / 100, flat = i.L * i.W, up = i.up * (i.perim > 0 ? i.perim : 2 * (i.L + i.W)), A = flat + up;
+      tr(o, 'Flat area', 'L × W', flat, 'm²'); tr(o, 'Upturn area', 'upturn height × (upturn length or 2 × (L + W))', up, 'm²'); tr(o, 'Area', 'flat + upturn', A, 'm²');
+      if (A > 0 && i.pack > 0) {
+        if (i.sys === 'liquid') {
+          const c = fac(o, F, 'waterproof.liquidKgPerSqmPerCoat');
+          if (c !== null && i.coats > 0) { const kg = A * i.coats * c * w, n = ceilE(kg / i.pack); tr(o, 'Membrane', 'area × coats × kg/m² per coat × (1 + waste)', kg, 'kg'); tr(o, 'Packages', 'ceil(kg / package size)', n, 'pcs'); priced(o, 'WP', ('Liquid membrane ' + (i.pdesc || '')).trim(), 'pail', n, i.unitCost); }
+        } else {
+          const m2 = A * (1 + i.lap / 100) * w, n = ceilE(m2 / i.pack); tr(o, 'Membrane', 'area × (1 + lap%) × (1 + waste)', m2, 'm²'); tr(o, 'Rolls', 'ceil(m² / m² per roll)', n, 'rolls');
+          priced(o, 'WP', ('Sheet membrane ' + (i.pdesc || '')).trim(), 'roll', n, i.unitCost);
+        }
+      }
+      if (A > 0 && i.primer && i.primerPack > 0) { const p = fac(o, F, 'waterproof.primerLPerSqm'); if (p !== null) { const L = A * p * w, n = ceilE(L / i.primerPack); tr(o, 'Primer', 'area × L/m² × (1 + waste)', L, 'L'); priced(o, 'WP', 'Primer', 'pc', n, i.primerCost); } }
+      if (A > 0) o.labor.push({div: 'WP', code: 'L_WP', qty: A});
+      o.info.push(['Waterproofed area', fmt(A) + ' m²']);
+      return o;
+    },
+    doc: {measure: 'Area = L × W + upturn height × upturn length (full perimeter if not given).', conversions: 'Package sizes: kg per pail (liquid) or m² per roll (sheet).',
+      net: 'Area (m²).', deductions: 'None.', waste: 'Element waste %; sheet also lap %.', purchase: 'Pails / rolls / primer packages rounded up.',
+      materials: 'Membrane and primer priced per element (as specified).', labor: 'Waterproofing per m².', equipment: 'None.', sources: 'Consumption per coat and primer L/m² not set by default (product data sheet).'}},
+
+  painting: {cat: 'Architectural', name: 'Painting', prefix: 'PT', div: 'PAINT', module: true,
+    fields: [SEC('Surface'), SEL('surf', 'Measure', [['wall', 'Walls (perimeter × height)'], ['ceiling', 'Ceiling (length × width)'], ['area', 'Area entered directly']], 'wall'),
+      N('L', 'Perimeter (walls) or length (ceiling)', 'm', 0), N('H', 'Height (walls) or width (ceiling)', 'm', 0), N('A', 'Area', 'm²', 0), TXT('open', 'Deductions (W x H x count)', '', 'e.g. 0.9x2.1x2'),
+      SEC('Paint system (from the product)'), TXT('pdesc', 'Product', '', 'e.g. acrylic latex, semi-gloss'), N('pc', 'Primer coats', 'pcs', 0), N('fc', 'Finish coats', 'pcs', 0), N('waste', 'Waste allowance', '%', 0),
+      N('cont', 'Container size', 'L', 4), N('primerCost', 'Unit cost per primer container', '₱', 0), N('finishCost', 'Unit cost per finish container', '₱', 0),
+      CHK('putty', 'Skim coat / putty', false), N('puttyBag', 'Putty bag size', 'kg', 0), N('puttyCost', 'Unit cost per putty bag', '₱', 0)],
+    allowZero: ZERO('pc', 'waste'),
+    relevant: {L: i => i.surf !== 'area', H: i => i.surf !== 'area', A: i => i.surf === 'area', primerCost: i => i.pc > 0, puttyBag: i => !!i.putty, puttyCost: i => !!i.putty},
+    factors: i => [...(i.pc > 0 ? ['paint.primerCoverage'] : []), 'paint.finishCoverage', ...(i.putty ? ['paint.puttyKgPerSqm'] : [])],
+    calc(i, F) {
+      const o = mOut(), w = 1 + i.waste / 100, gross = i.surf === 'area' ? i.A : i.L * i.H;
+      tr(o, 'Gross area', i.surf === 'area' ? 'entered area' : i.surf === 'wall' ? 'perimeter × height' : 'length × width', gross, 'm²');
+      const A = deductions(o, i.open, gross);
+      tr(o, 'Net painted area', 'max(0, gross − deductions)', A, 'm²');
+      if (A > 0 && i.cont > 0) {
+        if (i.pc > 0) { const cov = fac(o, F, 'paint.primerCoverage'); if (cov !== null && cov > 0) { const L = A * i.pc / cov * w, n = ceilE(L / i.cont); tr(o, 'Primer', 'area × coats / coverage × (1 + waste)', L, 'L'); tr(o, 'Primer containers', 'ceil(L / container size)', n); priced(o, 'PAINT', ('Primer ' + (i.pdesc || '')).trim(), 'container', n, i.primerCost); } }
+        if (i.fc > 0) { const cov = fac(o, F, 'paint.finishCoverage'); if (cov !== null && cov > 0) { const L = A * i.fc / cov * w, n = ceilE(L / i.cont); tr(o, 'Finish paint', 'area × coats / coverage × (1 + waste)', L, 'L'); tr(o, 'Finish containers', 'ceil(L / container size)', n); priced(o, 'PAINT', ('Finish paint ' + (i.pdesc || '')).trim(), 'container', n, i.finishCost); } }
+      }
+      if (A > 0 && i.putty && i.puttyBag > 0) { const p = fac(o, F, 'paint.puttyKgPerSqm'); if (p !== null) { const kg = A * p * w, n = ceilE(kg / i.puttyBag); tr(o, 'Skim coat', 'area × kg/m² × (1 + waste)', kg, 'kg'); priced(o, 'PAINT', 'Skim coat / putty', 'bag', n, i.puttyCost); } }
+      if (A > 0) o.labor.push({div: 'PAINT', code: 'L_PAINT', qty: A});
+      o.info.push(['Painted area', fmt(A) + ' m²']);
+      return o;
+    },
+    doc: {measure: 'Net painted area (one face); coats multiply material, not the measured area.', conversions: 'Coverage m²/L per coat; litres → containers.', net: 'Area (m²).',
+      deductions: 'Openings W x H x count.', waste: 'Element waste % on paint and putty.', purchase: 'Containers and bags rounded up.', materials: 'Primer, finish and putty priced per element (as specified).',
+      labor: 'Painting per m² of surface.', equipment: 'None.', sources: 'Coverage and putty consumption not set by default (paint data sheet or Fajardo table).'}},
+
+  opening: {cat: 'Architectural', name: 'Door / window (schedule)', prefix: 'D', div: 'DW', module: true,
+    fields: [SEC('From the door & window schedule'), SEL('kind', 'Type', [['door', 'Door'], ['window', 'Window']], 'door'), TXT('desc', 'Description / specification', '', 'e.g. D1 – flush door, hardwood jamb'),
+      N('w', 'Width', 'm', 0), N('h', 'Height', 'm', 0), N('unitCost', 'Unit cost per set (supply, as specified)', '₱/set', 0),
+      SEC('Accessories'), CHK('lockset', 'Lockset / hardware set', false), N('lockCost', 'Unit cost of lockset', '₱/set', 0),
+      CHK('sealant', 'Perimeter sealant', false), SEL('sides', 'Sealed faces', [[1, 'One face'], [2, 'Both faces']], 2), N('cartLen', 'Sealant length per cartridge', 'm', 0), N('sealCost', 'Unit cost per cartridge', '₱', 0)],
+    relevant: {lockCost: i => !!i.lockset, cartLen: i => !!i.sealant, sealCost: i => !!i.sealant},
+    calc(i) {
+      const o = mOut(), A = i.w * i.h, P = 2 * (i.w + i.h);
+      tr(o, 'Opening area', 'W × H', A, 'm²'); tr(o, 'Perimeter', '2 × (W + H)', P, 'm');
+      if (A > 0) { priced(o, 'DW', `${i.kind === 'door' ? 'Door' : 'Window'} ${i.w}×${i.h} m${i.desc ? ' – ' + i.desc : ''}`, 'set', 1, i.unitCost); o.labor.push({div: 'DW', code: 'L_DWINST', qty: 1}); }
+      if (i.lockset && A > 0) priced(o, 'DW', 'Lockset / hardware set', 'set', 1, i.lockCost);
+      if (i.sealant && i.cartLen > 0 && A > 0) { const n = ceilE(P * i.sides / i.cartLen); tr(o, 'Sealant cartridges', 'ceil(perimeter × faces / length per cartridge)', n, 'pcs'); priced(o, 'DW', 'Sealant', 'pc', n, i.sealCost); }
+      o.info.push(['Size', `${i.w} × ${i.h} m (${fmt(A)} m²)`]);
+      return o;
+    },
+    doc: {measure: 'One set per element (use the element quantity for identical marks).', conversions: 'None.', net: 'Sets; area and perimeter shown for reference.',
+      deductions: 'Opening areas are NOT deducted from walls automatically; enter them in the wall element (never inferred).', waste: 'None.', purchase: 'Sets, locksets and sealant cartridges (ceil).',
+      materials: 'Supply priced per set as specified in the schedule.', labor: 'Installation per set.', equipment: 'None.', sources: 'All prices and sizes from the door & window schedule.'}},
+
+  steel: {cat: 'Structural', name: 'Structural steel', prefix: 'SS', div: 'STEEL', module: true,
+    fields: [SEC('Member'), SEL('kind', 'Item', [['member', 'Rolled section (unit weight × length)'], ['plate', 'Plate (L × W × t)']], 'member'), TXT('sect', 'Section / designation (as specified)', '', 'e.g. W8x31, C150x50x20x2.5'),
+      N('uw', 'Unit weight (from the steel table)', 'kg/m', 0), N('len', 'Length per piece', 'm', 0), N('pl', 'Plate length', 'm', 0), N('pw', 'Plate width', 'm', 0), N('pt', 'Plate thickness', 'mm', 0),
+      SEC('Allowances'), N('conn', 'Connection allowance', '%', 0), N('waste', 'Waste allowance', '%', 0), N('bolts', 'Bolts per piece', 'pcs', 0),
+      CHK('equip', 'Include crane / lifting', false), N('craneHr', 'Crane hours per piece', 'hr', 0)],
+    allowZero: ZERO('conn', 'waste', 'bolts'),
+    relevant: {uw: i => i.kind === 'member', len: i => i.kind === 'member', pl: i => i.kind === 'plate', pw: i => i.kind === 'plate', pt: i => i.kind === 'plate', craneHr: i => !!i.equip},
+    factors: i => i.kind === 'plate' ? ['steel.density'] : [],
+    calc(i, F) {
+      const o = mOut();
+      let kg = 0;
+      if (i.kind === 'member') { kg = i.uw * i.len; tr(o, 'Weight per piece', 'unit weight × length', kg, 'kg'); }
+      else { const rho = fac(o, F, 'steel.density'); if (rho !== null) { kg = i.pl * i.pw * (i.pt / 1000) * rho; tr(o, 'Weight per piece', 'L × W × t (m) × density', kg, 'kg'); } }
+      const buy = kg * (1 + i.conn / 100) * (1 + i.waste / 100);
+      tr(o, 'Steel to buy per piece', 'weight × (1 + connection%) × (1 + waste%)', buy, 'kg');
+      if (buy > 0) { o.lines.push({div: 'STEEL', code: 'STL', qty: buy}); o.labor.push({div: 'STEEL', code: 'L_STEEL', qty: kg}); }
+      if (i.bolts > 0) o.lines.push({div: 'STEEL', code: 'BOLT', qty: i.bolts});
+      if (i.equip && i.craneHr > 0) o.labor.push({div: 'STEEL', code: 'E_CRANE', qty: i.craneHr});
+      o.info.push(['Weight', fmt(kg) + ' kg per piece'], ['Section', i.sect || '(not given)']);
+      return o;
+    },
+    doc: {measure: 'Members by unit weight (from the steel table) × length; plates by volume × density.', conversions: 'Plate thickness mm → m.', net: 'kg per piece × element quantity.',
+      deductions: 'None (holes and copes are within the connection allowance).', waste: 'Connection % and waste % compound.', purchase: 'kg; bolts as pieces.',
+      materials: 'Steel and bolts from the price list.', labor: 'Fabrication and erection per kg (net).', equipment: 'Optional crane hours per piece.',
+      sources: 'Unit weights from the section table (entered, never inferred from a drawing); steel density 7850 kg/m³ (physical property).'}},
+
+  plumbing: {cat: 'MEP schedules', name: 'Plumbing item (schedule)', prefix: 'PL', div: 'PLUMB', module: true,
+    fields: [SEC('From the plumbing plan / schedule'), SEL('cat', 'Category', [['fixture', 'Fixture'], ['pipe', 'Pipe (metres)'], ['fitting', 'Fitting'], ['valve', 'Valve'], ['other', 'Other']], 'fixture'),
+      TXT('desc', 'Description / size', '', 'e.g. PVC pipe 4" (S1000)'), N('qin', 'Quantity from the plan (pcs, or metres for pipe)', 'pcs / m', 0),
+      N('stock', 'Pipe stock length', 'm', 3), N('waste', 'Waste allowance', '%', 0), N('unitCost', 'Unit cost (per piece; per stock length for pipe)', '₱', 0)],
+    allowZero: ZERO('waste'), relevant: {stock: i => i.cat === 'pipe'},
+    calc(i) { return scheduleItem(i, 'PLUMB', 'L_PLUMB', i.cat === 'pipe' ? i.stock : 0, 'pipe length'); },
+    doc: scheduleDoc('plumbing', 'pipe stock length')},
+  electrical: {cat: 'MEP schedules', name: 'Electrical item (schedule)', prefix: 'EL', div: 'ELEC', module: true,
+    fields: [SEC('From the electrical plan / schedule'), SEL('cat', 'Category', [['wire', 'Wire / cable (metres)'], ['conduit', 'Conduit (metres)'], ['device', 'Device (outlet, switch)'], ['fixture', 'Lighting fixture'], ['panel', 'Panel / breaker'], ['other', 'Other']], 'device'),
+      TXT('desc', 'Description / size', '', 'e.g. THHN 3.5 mm²'), N('qin', 'Quantity from the plan (pcs, or metres for wire/conduit)', 'pcs / m', 0),
+      N('pack', 'Roll length (wire) or stock length (conduit)', 'm', 0), N('waste', 'Waste allowance', '%', 0), N('unitCost', 'Unit cost (per piece, roll or length)', '₱', 0)],
+    allowZero: ZERO('waste'), relevant: {pack: i => i.cat === 'wire' || i.cat === 'conduit'},
+    calc(i) { return scheduleItem(i, 'ELEC', 'L_ELEC', (i.cat === 'wire' || i.cat === 'conduit') ? i.pack : 0, i.cat === 'wire' ? 'roll' : 'length'); },
+    doc: scheduleDoc('electrical', 'roll or stock length')},
+});
+function scheduleItem(i, div, laborCode, perPack, packWord) {
+  const o = mOut(), w = 1 + i.waste / 100;
+  let n;
+  if (perPack > 0) { n = ceilE(i.qin * w / perPack); tr(o, 'Packages', `ceil(metres × (1 + waste) / ${packWord})`, n, 'pcs'); }
+  else { n = ceilE(i.qin * w); tr(o, 'Pieces', 'ceil(quantity × (1 + waste))', n, 'pcs'); }
+  if (n > 0) { priced(o, div, i.desc || i.cat, perPack > 0 ? packWord : 'pc', n, i.unitCost); o.labor.push({div, code: laborCode, qty: n}); }
+  o.info.push(['To buy', `${n} ${perPack > 0 ? packWord + '(s)' : 'pc(s)'}`]);
+  return o;
+}
+function scheduleDoc(kind, pack) {
+  return {measure: `Quantities are taken from the ${kind} plan or schedule (counted, not designed).`, conversions: `Metres → packages by ${pack}.`, net: 'Quantity as counted.',
+    deductions: 'None.', waste: 'Element waste %.', purchase: 'Pieces or packages rounded up.', materials: 'Priced per element (as specified).',
+    labor: `${kind[0].toUpperCase() + kind.slice(1)} installation as a % of this division's materials (rate not set by default).`, equipment: 'None.', sources: 'All sizes, quantities and prices from the plans and suppliers.'};
+}
+
+// ---- BOQ with element-priced items. Legacy result is returned unchanged when there are none.
+function collectPriced(st) {
+  const out = [];
+  for (const el of st.elements) {
+    const T = TYPES[el.type]; if (!T || !T.module) continue;
+    const q = Math.max(0, Math.round(+el.qty || 0)); if (!q) continue;
+    for (const c of computeElement(el, st.factors).custom || []) out.push({level: el.level, div: c.div, name: `${el.mark}: ${c.name}`, unit: c.unit, qty: c.qty * q, rate: c.rate, elementId: el.id});
+  }
+  return out;
+}
+{
+  const legacy = buildBOQ;
+  buildBOQ = function (st) {
+    const b = legacy(st), items = collectPriced(st);
+    if (!items.length) return b;
+    // Rebuild the row list block by block (division → level); legacy rows keep their values.
+    const blocks = new Map(), key = (d, l) => d + '|' + l, divKey = Object.fromEntries(DIVS.map(([k, n]) => [n, k]));
+    const estLevels = dk => b.est.filter(e => e.divs[dk]).map(e => e.level.id);
+    let dk = null, li = -1;
+    for (const r of b.rows) {
+      if (r.kind === 'div') { dk = divKey[r.text]; li = -1; }
+      else if (r.kind === 'lvl') { li++; blocks.set(key(dk, estLevels(dk)[li]), {mats: [], labs: []}); }
+      else if (r.kind === 'mat') blocks.get(key(dk, estLevels(dk)[li])).mats.push(r);
+      else if (r.kind === 'lab') blocks.get(key(dk, estLevels(dk)[li])).labs.push(r);
+    }
+    for (const it of items) {
+      const k = key(it.div, it.level);
+      if (!blocks.has(k)) blocks.set(k, {mats: [], labs: []});
+      blocks.get(k).mats.push({kind: 'mat', code: 'PRICED', name: it.name, unit: it.unit, qty: it.qty, rate: it.rate, amt: it.qty * it.rate, custom: true, elementId: it.elementId});
+    }
+    const rows = [], divTotals = [];
+    for (const [d, dname] of DIVS) {
+      const lv = st.levels.filter(l => blocks.has(key(d, l.id)));
+      if (!lv.length) continue;
+      rows.push({kind: 'div', text: dname});
+      let divTotal = 0;
+      for (const l of lv) {
+        const blk = blocks.get(key(d, l.id));
+        rows.push({kind: 'lvl', text: l.name});
+        let mat = 0, lab = 0;
+        for (const r of blk.mats) { rows.push(r); mat += r.amt; }
+        for (const r of blk.labs) {
+          const x = r.pct ? {...r, rate: mat, amt: mat * r.qty / 100} : r;   // %-of-materials labor includes element-priced items
+          rows.push(x); lab += x.amt;
+        }
+        rows.push({kind: 'sub', text: 'Subtotal – ' + l.name, mat, lab, amt: mat + lab});
+        divTotal += mat + lab;
+      }
+      divTotals.push({div: d, name: dname, amt: divTotal});
+    }
+    const s = st.settings, direct = divTotals.reduce((a, x) => a + x.amt, 0);
+    const ocm = direct * s.ocm / 100, profit = direct * s.profit / 100, cont = direct * s.contingency / 100;
+    const sub = direct + ocm + profit + cont, vat = sub * s.vat / 100;
+    return {rows, divTotals, totals: {direct, ocm, profit, cont, sub, vat, grand: sub + vat}, est: b.est};
+  };
+}
+
+// ---- Worked examples (hand-calculated). Coefficient values here are TEST INPUTS only.
+function runModuleSelfTests() {
+  const res = [], near = (a, b, tol) => Math.abs(a - b) <= tol;
+  const F = defaultFactors();
+  Object.assign(F.earth, {swellPct: 25}); Object.assign(F.tile, {adhesiveKgPerSqm: 5, adhesiveBagKg: 25, groutDensity: 1600});
+  Object.assign(F.paint, {primerCoverage: 10, finishCoverage: 25}); Object.assign(F.waterproof, {liquidKgPerSqmPerCoat: 1, primerLPerSqm: 0.2}); F.roof.screwsPerSqm = 6;
+  const t = (name, fn) => { try { const fails = []; fn((l, g, e, tol = 1e-6) => { if (!near(g, e, tol)) fails.push(`${l}: got ${round(g, 6)}, expected ${e}`); }); res.push({name, ok: !fails.length, fails}); } catch (e) { res.push({name, ok: false, fails: [String(e)]}); } };
+  const run = (type, inp) => computeElement({type, inp}, F);
+  const tq = (o, label) => (o.trace.find(x => x[0] === label) || [])[2];
+  const lab = (o, code) => o.labor.filter(l => l.code === code).reduce((s, l) => s + l.qty, 0);
+  const cq = (o, re) => o.custom.filter(c => re.test(c.name)).reduce((s, c) => s + c.qty, 0);
+  t('Excavation pit 1.5×1.5×1.5 m, 0.3 m working space, 0.5:1 slope, swell 25%', eq => {
+    const o = run('excavation', {mode: 'pit', L: 1.5, W: 1.5, D: 1.5, ws: 0.3, slope: 0.5, struct: 1.076, haul: true});
+    eq('A1 = 2.1²', tq(o, 'Bottom area A1'), 4.41); eq('Am = 2.85²', tq(o, 'Mid-depth area Am'), 8.1225); eq('A2 = 3.6²', tq(o, 'Top area A2'), 12.96);
+    eq('V = 1.5/6 × (4.41 + 4×8.1225 + 12.96)', lab(o, 'L_EXC'), 12.465); eq('backfill = 12.465 − 1.076', lab(o, 'L_BF'), 11.389); eq('loose disposal = 1.076 × 1.25', lab(o, 'L_HAUL'), 1.345);
+  });
+  t('Trench 10 m × 0.6 m × 0.8 m, vertical sides', eq => eq('V', lab(run('excavation', {mode: 'trench', L: 10, W: 0.6, D: 0.8, haul: false}), 'L_EXC'), 4.8));
+  t('Gable roof 10 × 8 m, 0.6 m overhang, 20°, 0.76 m cover width', eq => {
+    const o = run('roofing', {form: 'gable', L: 10, W: 8, oh: 0.6, pitch: 20, cw: 0.76, sheetCost: 1});
+    eq('slope factor 1/cos 20°', tq(o, 'Slope factor'), 1.0641777725, 1e-9); eq('slope length 4.6 × k', tq(o, 'Slope length'), 4.6 * 1.0641777725, 1e-8);
+    eq('roof area 2 × 11.2 × 4.8952', lab(o, 'L_ROOF'), 2 * 11.2 * 4.6 / Math.cos(Math.PI / 9), 1e-9); eq('rows ceil(11.2/0.76)', tq(o, 'Sheet rows per slope'), 15);
+    eq('sheet metres 2 × 15 × slope length', cq(o, /^Roofing sheet/), round(30 * 4.6 / Math.cos(Math.PI / 9), 2), 1e-9);
+    eq('screws 6/m²', o.lines.find(l => l.code === 'RSCR').qty, 6 * 2 * 11.2 * 4.6 / Math.cos(Math.PI / 9), 1e-6);
+  });
+  t('Floor tiles 4 × 5 m, 600×600×10 mm, 3 mm joint, no waste', eq => {
+    const o = run('tiles', {surf: 'floor', L: 4, W: 5, tw: 600, th: 600, tt: 10, jw: 3, tileCost: 1});
+    eq('module 0.603²', tq(o, 'Tile module'), 0.363609); eq('tiles to buy ceil(20 / 0.363609)', cq(o, /^Tiles/), 56);
+    eq('grout 0.16 kg/m² × 20', o.lines.find(l => l.code === 'TGRT').qty, 3.2, 1e-9); eq('adhesive 20 × 5 / 25 bags', o.lines.find(l => l.code === 'TADH').qty, 4, 1e-9);
+  });
+  t('Wall paint 18 m × 3 m less one 0.9×2.1 door, 2 coats at 25 m²/L, 4 L containers', eq => {
+    const o = run('painting', {surf: 'wall', L: 18, H: 3, open: '0.9x2.1x1', fc: 2, cont: 4, finishCost: 1});
+    eq('net area 54 − 1.89', lab(o, 'L_PAINT'), 52.11); eq('litres 52.11 × 2 / 25', tq(o, 'Finish paint'), 4.1688); eq('containers ceil(4.1688/4)', cq(o, /^Finish paint/), 2);
+  });
+  t('Waterproofing 3 × 4 m with 0.3 m upturn, 2 coats × 1 kg/m², 20 kg pails', eq => {
+    const o = run('waterproof', {L: 3, W: 4, up: 0.3, sys: 'liquid', coats: 2, pack: 20, unitCost: 1});
+    eq('area 12 + 0.3 × 14', lab(o, 'L_WP'), 16.2); eq('kg 16.2 × 2 × 1', tq(o, 'Membrane'), 32.4); eq('pails ceil(32.4/20)', cq(o, /membrane/i), 2);
+  });
+  t('Steel: plate 0.3 × 0.3 m × 12 mm and W-section 46.1 kg/m × 6 m', eq => {
+    eq('plate 0.3 × 0.3 × 0.012 × 7850', run('steel', {kind: 'plate', pl: 0.3, pw: 0.3, pt: 12}).lines.find(l => l.code === 'STL').qty, 8.478, 1e-9);
+    eq('member 46.1 × 6', run('steel', {kind: 'member', uw: 46.1, len: 6}).lines.find(l => l.code === 'STL').qty, 276.6, 1e-9);
+  });
+  t('Door 0.9 × 2.1 m with sealant both faces, 6 m per cartridge', eq => {
+    const o = run('opening', {kind: 'door', w: 0.9, h: 2.1, unitCost: 1, sealant: true, sides: 2, cartLen: 6, sealCost: 1});
+    eq('perimeter', tq(o, 'Perimeter'), 6); eq('cartridges ceil(6 × 2 / 6)', cq(o, /^Sealant/), 2); eq('door sets', cq(o, /^Door/), 1);
+  });
+  t('Schedules: 230 m wire on 150 m rolls; 25 m pipe on 3 m lengths', eq => {
+    eq('rolls', cq(run('electrical', {cat: 'wire', qin: 230, pack: 150, unitCost: 1}), /./), 2);
+    eq('pipe lengths', cq(run('plumbing', {cat: 'pipe', qin: 25, stock: 3, unitCost: 1}), /./), 9);
+  });
+  t('A missing coefficient omits the item and is reported, never guessed', eq => {
+    const o = computeElement({type: 'painting', inp: {surf: 'area', A: 10, fc: 2, finishCost: 1}}, defaultFactors());
+    eq('no paint line', o.custom.length, 0); eq('missing reported', o.missing.length, 1); eq('labor still measured', lab(o, 'L_PAINT'), 10);
+  });
+  return res;
+}
+</script>
+
+<!-- ===================================================================== -->
 <!-- AUDITOR: deterministic estimate checks (no DOM, no clock, no LLM)     -->
 <!-- ===================================================================== -->
 <script id="auditor">
@@ -857,6 +1309,8 @@ const SEV_LABEL = {critical: 'Critical', major: 'Major', minor: 'Minor', info: '
 const TAKEOFF_SCOPES = [
   ['FTG', 'Footings', ['footing', 'wallfooting']], ['COL', 'Columns', ['column']], ['BEAM', 'Beams', ['beam']], ['SLAB', 'Slabs', ['slab']],
   ['RCW', 'RC walls', ['rcwall']], ['STR', 'Stairs', ['stairs']], ['CHB', 'CHB walls', ['chbwall']], ['PART', 'Partitions & cubicles', ['chbpart', 'drywall', 'cubicle']], ['CEIL', 'Ceilings', ['ceiling']],
+  ['EARTH', 'Excavation & backfill', ['excavation']], ['SSTL', 'Structural steel', ['steel']], ['ROOF', 'Roofing', ['roofing']], ['TILE', 'Tiles', ['tiles']],
+  ['WPF', 'Waterproofing', ['waterproof']], ['PNT', 'Painting', ['painting']], ['DWS', 'Doors & windows', ['opening']], ['PLB', 'Plumbing', ['plumbing']], ['ELE', 'Electrical', ['electrical']],
 ];
 const TAKEOFF_STATUS = [['pending', 'Not started'], ['progress', 'In progress'], ['complete', 'Complete'], ['na', 'Not applicable']];
 const EXPORT_POLICIES = [
@@ -895,6 +1349,8 @@ const RULES = {
   'R-PRICE-006': ['info', 'Price date is not recorded'],
   'R-COEF-001': ['critical', 'Unverified estimating coefficients are used'],
   'R-COEF-002': ['critical', 'Interpolated coefficient without a source is used'],
+  'R-COEF-003': ['critical', 'Required coefficient is not set'],
+  'R-MOD-002': ['critical', 'Inputs cannot produce this item'],
   'R-DUP-001': ['major', 'Possible duplicate elements'],
   'R-DUP-002': ['major', 'Element mark used more than once'],
   'R-OVL-001': ['minor', 'Suspected slab–beam concrete overlap'],
@@ -943,6 +1399,7 @@ function inputHashes(st) {
 // ---- Which coefficients an element's calculation reads (superset is safe)
 function factorsUsed(el, F) {
   const t = el.type, i = normInputs(t, el.inp), u = new Set(), add = (...p) => p.forEach(x => u.add(x));
+  if (TYPES[t] && TYPES[t].factors) add(...TYPES[t].factors(i));
   const rebar = () => add('rebar.lapFactor', 'rebar.commercial', 'rebar.tieWirePerX', 'rebar.tieWireMPerKg', 'rebar.allowancePct');
   const board = b => add(`boards.${b}.w`, `boards.${b}.l`);
   if (['footing', 'wallfooting', 'column', 'beam', 'slab', 'rcwall', 'stairs'].includes(t)) {
@@ -973,15 +1430,19 @@ function factorsUsed(el, F) {
 function elementChecks(el, F) {
   const out = [], T = TYPES[el.type];
   const R = (rule, path, description, evidence, suggestion) => out.push({rule, path, description, evidence, suggestion});
-  const raw = el.inp || {}, i = normInputs(el.type, raw), rel = RELEVANT[el.type] || {};
+  const raw = el.inp || {}, i = normInputs(el.type, raw), rel = RELEVANT[el.type] || T.relevant || {}, zeroOk = k => ALLOW_ZERO.has(k) || !!(T.allowZero && T.allowZero.has(k));
   for (const f of T.fields) {
     if (!f.k || f.t !== 'num') continue;
     if (rel[f.k] && !rel[f.k](i)) continue;
     const v = raw[f.k] === undefined ? f.def : raw[f.k], n = Number(v), label = `${f.label}${f.unit ? ' (' + f.unit + ')' : ''}`;
     if (!Number.isFinite(n) || v === null || v === '') { R('R-DIM-001', f.k, `${label} is not a number.`, {field: f.k, value: String(v)}, 'Enter a number.'); continue; }
     if (n < 0) { R('R-DIM-002', f.k, `${label} is negative (${n}).`, {field: f.k, value: n}, 'Enter a positive value from the drawing.'); continue; }
-    if (n === 0 && !ALLOW_ZERO.has(f.k)) { R('R-DIM-003', f.k, `${label} is 0, which removes quantities from the estimate.`, {field: f.k, value: n}, 'Enter the value from the drawing.'); continue; }
-    if (n === 0) continue;
+    if (n === 0 && !zeroOk(f.k)) {
+      const money = String(f.unit || '').startsWith('₱');
+      R('R-DIM-003', f.k, money ? `${label} is 0, so this item has no price.` : `${label} is 0, which removes quantities from the estimate.`, {field: f.k, value: n}, money ? 'Enter the unit cost from the supplier quotation.' : 'Enter the value from the drawing.');
+      continue;
+    }
+    if (n === 0 || T.module) continue;   // module fields have their own plausibility checks (T.checks)
     const L = AUDIT_LIMITS;
     if (f.unit === 'm') {
       if (n > L.mMax || (SECTION_KEYS.has(f.k) && n > L.sectionMax)) R('R-UNIT-001', f.k, `${label} = ${n} m is unusually large; it may have been entered in mm or cm.`, {field: f.k, value: n, unit: 'm', limit: SECTION_KEYS.has(f.k) ? L.sectionMax : L.mMax}, 'Check the unit: this field is in metres.');
@@ -1013,9 +1474,12 @@ function elementChecks(el, F) {
     if (op.errors.length) R('R-DIM-006', 'open', `Openings "${op.errors.join(', ')}" could not be read and are not deducted.`, {unreadable: op.errors}, 'Write openings as W x H x count, e.g. 0.9x2.1x2.');
     if (i.L > 0 && i.H > 0 && op.area >= i.L * i.H) R('R-DIM-005', 'open', `Openings (${Math.round(op.area * 100) / 100} m²) are not smaller than the wall (${Math.round(i.L * i.H * 100) / 100} m²), so the net area is 0.`, {openings_m2: Math.round(op.area * 1e4) / 1e4, wall_m2: Math.round(i.L * i.H * 1e4) / 1e4}, 'Check the opening sizes and the wall length/height.');
   }
+  if (T.checks) for (const c of T.checks(i)) R(c.rule, c.path, c.description, c.evidence, c.suggestion);
   let r = null;
   try { r = computeElement(el, F); } catch (e) { R('R-QTY-001', '', 'The calculation failed: ' + e.message, {error: e.message}, 'Check the inputs.'); }
-  if (r && !r.lines.length && !r.bars.length && !out.some(x => RULES[x.rule][0] === 'critical')) R('R-QTY-001', '', 'These inputs produce no material quantities.', {lines: 0, bars: 0}, 'Check the dimensions, spacing and cover.');
+  if (r && r.missing && r.missing.length) R('R-COEF-003', 'missing', `Coefficient(s) not set: ${r.missing.join(', ')}. The quantities that need them are left out of the BOQ.`, {coefficients: r.missing}, 'Enter each value on the Factors tab from its cited source, record the table/page and tick Verified.');
+  const nothing = r && !r.lines.length && !r.bars.length && !(r.custom && r.custom.length) && !(T.laborOnly && r.labor.some(l => l.qty > 0));
+  if (nothing && !out.some(x => RULES[x.rule][0] === 'critical')) R('R-QTY-001', '', 'These inputs produce no material quantities.', {lines: 0, bars: 0}, 'Check the dimensions, spacing and cover.');
   return out;
 }
 
@@ -1069,7 +1533,8 @@ function runAudit(st, {today} = {}) {
       {dia, lap_m: Math.round(lapLen(dia, F) * 1000) / 1000, commercial: st.settings.stock === 'auto' ? F.rebar.commercial : [Number(st.settings.stock)]}, 'Use a longer commercial length or check the lap factor.', ids);
   }
   // Prices
-  const matRows = boq.rows.filter(r => r.kind === 'mat'), labRows = boq.rows.filter(r => r.kind === 'lab');
+  const matRows = boq.rows.filter(r => r.kind === 'mat' && !r.custom), labRows = boq.rows.filter(r => r.kind === 'lab');
+  for (const r of boq.rows.filter(r => r.custom && !(Number(r.rate) > 0))) F_('R-PRICE-001', 'priced|' + r.elementId + '|' + r.name, `${r.name} has no unit cost.`, {item: r.name, unit: r.unit, qty: r.qty, rate: r.rate}, 'Enter the unit cost in the element (from the supplier quotation).', [r.elementId]);
   const usedMat = [...new Set(matRows.map(r => r.code))], usedLab = [...new Set(labRows.map(r => r.code))];
   for (const c of usedMat) { const p = st.prices[c]; if (!(Number(p.price) > 0)) F_('R-PRICE-001', c, `${p.name} is in the BOQ with a price of ${p.price}.`, {code: c, price: p.price}, 'Enter the supplier price.', [], ['prices.' + c]); }
   const sampleM = usedMat.filter(c => st.prices[c].source === 'sample');
@@ -1085,14 +1550,15 @@ function runAudit(st, {today} = {}) {
     if (old.length) F_('R-PRICE-003', 'expired', `${old.length} price(s) are older than ${days} days.`, {validityDays: days, prices: old}, 'Confirm or update these prices.', [], old.map(o => o.path));
     if (undated.length) F_('R-PRICE-006', 'undated', `${undated.length} of your price(s) have no recorded date, so their age cannot be checked.`, {paths: undated}, 'Re-enter the price to record today\'s date.', [], undated);
   }
-  for (const c of usedLab) { const l = st.labor[c]; if (l.mode !== 'pct' && !(Number(l.rate) > 0)) F_('R-PRICE-004', c, `${l.name} has a rate of ${l.rate}.`, {code: c, rate: l.rate}, 'Enter the labor rate, or confirm labor is excluded.', [], ['labor.' + c]); }
+  for (const c of usedLab) { const l = st.labor[c]; if (!(Number(l.rate) > 0)) F_('R-PRICE-004', c, `${l.name} has a rate of ${l.rate}${l.mode === 'pct' ? '%' : ''}.`, {code: c, rate: l.rate}, 'Enter the labor rate, or confirm labor is excluded.', [], ['labor.' + c]); }
   const sampleL = usedLab.filter(c => st.labor[c].source === 'sample');
   if (sampleL.length) F_('R-PRICE-005', 'labor', `${sampleL.length} labor rate(s) are sample values.`, {codes: sampleL}, 'Enter your own labor rates on the Prices tab.', [], sampleL.map(c => 'labor.' + c));
   // Coefficients
   const FM = st.factorMeta || {}, use = new Map();
   for (const el of st.elements) if (Number(el.qty) > 0) for (const p of factorsUsed(el, F)) { if (!use.has(p)) use.set(p, []); use.get(p).push(el.id); }
   const interp = [...use.keys()].filter(p => FM[p] && /interpolated/i.test(FM[p].source || '') && !FM[p].verified);
-  const unver = [...use.keys()].filter(p => FM[p] && !FM[p].verified && !interp.includes(p)).sort();
+  const valueOf = p => p.split('.').reduce((a, k) => (a == null ? a : a[k]), F);
+  const unver = [...use.keys()].filter(p => FM[p] && !FM[p].verified && !interp.includes(p) && valueOf(p) !== null && valueOf(p) !== undefined).sort();   // unset ones are R-COEF-003
   if (interp.length) F_('R-COEF-002', 'interp', `${interp.join(', ')} ${interp.length > 1 ? 'are' : 'is'} interpolated with no cited source and ${interp.length > 1 ? 'are' : 'is'} used by ${new Set(interp.flatMap(p => use.get(p))).size} element(s).`,
     {coefficients: interp.map(p => ({path: p, source: FM[p].source, note: FM[p].note}))}, 'Replace the value with one from a cited table and record the reference, or use a different CHB size.', [...new Set(interp.flatMap(p => use.get(p)))], interp.map(p => 'factors.' + p));
   if (unver.length) {
@@ -1223,6 +1689,7 @@ function factorPaths(F, p = '') {
 function defaultFactorMeta() {
   const m = {};
   for (const [p] of factorPaths(defaultFactors())) {
+    if (MODULE_FACTOR_META[p]) { const [source, note, verified] = MODULE_FACTOR_META[p]; m[p] = {source, ref: '', verified, note}; continue; }
     let source = 'Developer default – no cited source', verified = false, note = '';
     if (/^(concrete\.|chb\.mortar\.[46]\.|plaster\.)/.test(p)) { source = SRC_FAJARDO; note = 'Designated by the user. Table and page not yet recorded; values not yet checked against the book.'; }
     else if (/^chb\.mortar\.5\./.test(p)) { source = 'None – interpolated'; note = 'Interpolated between the 4" and 6" rows by the developer. Not from a cited table.'; }
@@ -1251,8 +1718,8 @@ function defaultState() {
     settings: {stock: 'auto', ocm: 8, profit: 10, contingency: 5, vat: 12},
     levels: [{id: uid(), name: 'Ground floor', h: 3.0}],
     elements: [],
-    prices: Object.fromEntries(MATERIALS.map(([c, n, u, p]) => [c, {name: n, unit: u, price: p, source: 'sample', updatedAt: null}])),
-    labor: Object.fromEntries(LABOR.map(([c, d, n, u, m, r]) => [c, {div: d, name: n, unit: u, mode: m, rate: r, source: 'sample', updatedAt: null}])),
+    prices: Object.fromEntries(MATERIALS.map(([c, n, u, p]) => [c, {name: n, unit: u, price: p, source: p > 0 ? 'sample' : 'unset', updatedAt: null}])),
+    labor: Object.fromEntries(LABOR.map(([c, d, n, u, m, r]) => [c, {div: d, name: n, unit: u, mode: m, rate: r, source: r > 0 ? 'sample' : 'unset', updatedAt: null}])),
     factors: defaultFactors(),
     factorMeta: defaultFactorMeta(),
     quarantine: {elements: [], invalidValues: [], unknownKeys: {}},
@@ -1347,7 +1814,7 @@ function migrate(raw) {
     if (r.name !== undefined) t.name = str(r.name);
     if (r.price !== undefined) { if (isNum(r.price)) t.price = Number(r.price); else { bad(`prices.${code}.price`, r.price, 0); t.price = 0; } }
     if (r.unit !== undefined && String(r.unit) !== unit) R('info', 'UNIT_FIXED', `prices.${code}: unit "${str(r.unit)}" replaced by "${unit}" (units are fixed by the formulas).`);
-    t.source = (r.source === 'sample' || r.source === 'user') ? r.source : (t.price === price && t.name === name ? 'sample' : 'user');
+    t.source = ['sample', 'user', 'unset'].includes(r.source) ? r.source : (t.price === price && t.name === name ? (price > 0 ? 'sample' : 'unset') : 'user');
     t.updatedAt = typeof r.updatedAt === 'string' ? r.updatedAt : null;
   }
   const lin = isObj(raw.labor) ? raw.labor : {};
@@ -1358,7 +1825,7 @@ function migrate(raw) {
     if (r.name !== undefined) t.name = str(r.name);
     if (r.mode !== undefined) { if (r.mode === 'unit' || r.mode === 'pct') t.mode = r.mode; else bad(`labor.${code}.mode`, r.mode, t.mode); }
     if (r.rate !== undefined) { if (isNum(r.rate)) t.rate = Number(r.rate); else { bad(`labor.${code}.rate`, r.rate, 0); t.rate = 0; } }
-    t.source = (r.source === 'sample' || r.source === 'user') ? r.source : (t.rate === rate && t.name === name && t.mode === mode ? 'sample' : 'user');
+    t.source = ['sample', 'user', 'unset'].includes(r.source) ? r.source : (t.rate === rate && t.name === name && t.mode === mode ? (rate > 0 ? 'sample' : 'unset') : 'user');
     t.updatedAt = typeof r.updatedAt === 'string' ? r.updatedAt : null;
   }
 
@@ -1369,6 +1836,7 @@ function migrate(raw) {
       const dv = def[k], ov = over[k];
       if (Array.isArray(dv)) { if (Array.isArray(ov) && ov.length && ov.every(x => isNum(x) && Number(x) > 0)) def[k] = ov.map(Number); else bad('factors.' + path + k, ov, dv); }
       else if (isObj(dv)) { if (isObj(ov)) merge(dv, ov, path + k + '.'); else bad('factors.' + path + k, ov, 'defaults'); }
+      else if (ov === null && dv === null) { /* coefficient not set yet */ }
       else if (isNum(ov)) def[k] = Number(ov); else bad('factors.' + path + k, ov, dv);
     }
   })(st.factors, isObj(raw.factors) ? raw.factors : {}, '');
@@ -1704,6 +2172,7 @@ document.addEventListener('change', ev => {
     const ks = key.split('.'), last = ks.pop(), o = ks.reduce((a, k) => a[k], S.factors), m = S.factorMeta[key];
     if (field === 'value') {
       if (Array.isArray(o[last])) { const arr = t.value.split(/[ ,;]+/).map(Number).filter(x => x > 0).sort((a, b) => a - b); o[last] = arr.length ? arr : [6]; }
+      else if (t.value.trim() === '' && getPath(defaultFactors(), key) === null) o[last] = null;   // back to "not set"
       else o[last] = num();
       m.verified = false; m.note = (m.note ? m.note + ' ' : '') + `Value changed by user on ${today}.`;
     } else if (field === 'ref') m.ref = t.value;
@@ -1787,7 +2256,7 @@ function vDashboard() {
     ['Formwork', dd.form > 0 ? `${fmt(dd.form)} m²` : '–', dd.conc > 0 ? `${fmt(dd.form / dd.conc, 2)} m² per m³ concrete` : ''],
     ['Masonry & partitions', `${fmt(dd.chb)} m² CHB`, `${fmt(dd.part)} m² board partitions`],
     ['Ceiling area', `${fmt(dd.ceil)} m²`, `${S.elements.filter(e => e.type === 'ceiling').length} ceiling element(s)`],
-    ['Elements', `${S.elements.length}`, `${S.elements.filter(e => TYPES[e.type].cat === 'Structural').length} structural · ${S.elements.filter(e => TYPES[e.type].cat === 'Architectural').length} architectural · ${S.levels.length} level(s)`],
+    ['Elements', `${S.elements.length}`, [...new Set(Object.values(TYPES).map(t => t.cat))].map(c => [c, S.elements.filter(e => TYPES[e.type].cat === c).length]).filter(([, n]) => n).map(([c, n]) => `${n} ${c.toLowerCase()}`).concat(`${S.levels.length} level(s)`).join(' · ')],
   ];
   return `<div class="stack">
     <div class="g-kpi">
@@ -1891,7 +2360,7 @@ function vElements() {
   const rows = list.map(e => {
     let r; try { r = computeElement(e, S.factors); } catch (err) { r = {info: [['Error', err.message]], lines: [], bars: []}; }
     const key = r.info.slice(0, 3).map(([a, b]) => `<span class="muted">${esc(a)}:</span> ${esc(b)}`).join(' · ');
-    const fs = getAud().findings.filter(f => f.status !== 'acknowledged' && /^R-(DIM|UNIT|RB-00[124]|QTY|DUP)/.test(f.ruleId) && f.refs.elementIds.includes(e.id));
+    const fs = getAud().findings.filter(f => f.status !== 'acknowledged' && /^R-(DIM|UNIT|RB-00[124]|QTY|DUP|MOD|COEF-003)/.test(f.ruleId) && f.refs.elementIds.includes(e.id));
     const worst = fs.length ? fs[0].severity : null;
     return `<tr><td><b>${esc(e.mark)}</b></td><td><span class="tchip" style="--c:var(--d-${typeDiv(e.type)})">${esc(TYPES[e.type].name)}</span></td><td>${esc(lvName(e.level))}</td><td class="n">${esc(e.qty)}</td><td>${worst ? `<span class="pill ${worst === 'critical' ? 'bad' : 'warn'}" title="${esc(fs.map(f => f.title).join('; '))}">${fs.length} issue${fs.length > 1 ? 's' : ''}</span> ` : ''}${key}</td>
       <td class="row"><button class="btn sm" data-act="edit" data-arg="${esc(e.id)}">Edit</button><button class="btn sm" data-act="copy" data-arg="${esc(e.id)}">Copy</button><button class="btn sm danger" data-act="del" data-arg="${esc(e.id)}">Delete</button></td></tr>`;
@@ -1967,6 +2436,8 @@ function preview() {
     ${r.bars.length ? `<h4>Bar list (1 element)</h4><table><tr><th>Bar</th><th class="n">Ø</th><th class="n">Cut L (m)</th><th class="n">No.</th><th class="n">kg</th></tr>
       ${r.bars.map(b => `<tr><td>${esc(b.desc)}</td><td class="n">${b.dia}</td><td class="n">${fmt(b.len, 3)}</td><td class="n">${b.n}</td><td class="n">${fmt(b.len * b.n * kgpm(b.dia))}</td></tr>`).join('')}</table>` : ''}
     ${agg.size ? `<h4>Materials (× ${q} element${q === 1 ? '' : 's'}, before rounding)</h4><table>${[...agg].map(([c, v]) => `<tr><td>${esc(P[c].name)}</td><td class="n">${fmt(v * q, 3)}</td><td>${esc(P[c].unit)}</td></tr>`).join('')}</table>` : ''}
+    ${r.custom && r.custom.length ? `<h4>Priced in this element (× ${q})</h4><table>${r.custom.map(c => `<tr><td>${esc(c.name)}</td><td class="n">${fmt(c.qty * q, 2)}</td><td>${esc(c.unit)}</td><td class="n">${c.rate > 0 ? esc(peso(c.rate)) : '<span class="pill bad">no cost</span>'}</td></tr>`).join('')}</table>` : ''}
+    ${r.trace && r.trace.length ? `<h4>Calculation trace (1 element)</h4><table>${r.trace.map(([l, f, v, u]) => `<tr><td>${esc(l)}<div class="muted" style="font-size:11px">${esc(f)}</div></td><td class="n">${typeof v === 'number' ? fmt(v, Number.isInteger(v) ? 0 : 3) : esc(v)}</td><td>${esc(u)}</td></tr>`).join('')}</table>` : ''}
     ${r.bars.length ? `<p class="muted" style="font-size:12px">Rebar purchase (commercial lengths, laps, tie wire) is optimized per level on the Rebar schedule tab.</p>` : ''}`;
 }
 function saveEditor() {
@@ -2148,10 +2619,10 @@ function vAudit() {
 
 // ---- Prices
 function vPrices() {
-  const src = o => o.source === 'sample' ? '<span class="pill warn">Sample</span>' : `<span class="pill good">Yours${o.updatedAt ? ' · ' + esc(o.updatedAt) : ''}</span>`;
+  const src = o => o.source === 'sample' ? '<span class="pill warn">Sample</span>' : o.source === 'unset' ? '<span class="pill bad">Not set</span>' : `<span class="pill good">Yours${o.updatedAt ? ' · ' + esc(o.updatedAt) : ''}</span>`;
   return `<div class="stack">
   <div class="card"><div class="row between"><h2 style="margin:0">Material prices</h2><button class="btn sm" data-act="resetPrices">Reset to sample prices</button></div>
-    <div class="note">Sample prices are placeholders, not market data. Enter your current supplier prices; edited prices are marked “Yours”.</div>
+    <div class="note">Sample prices are placeholders, not market data, and newer items have no price (“Not set”). Enter your current supplier prices; edited prices are marked “Yours”. Specified products (tiles, roofing sheets, doors, fixtures…) are priced inside their element.</div>
     <div class="tbl-wrap"><table><tr><th>Code</th><th>Material</th><th>Unit</th><th class="n">Unit price (₱)</th><th>Source</th></tr>
     ${MATERIALS.map(([c]) => { const m = S.prices[c]; return `<tr><td class="muted">${c}</td><td>${inputB(`price:${c}:name`, m.name)}</td><td>${esc(m.unit)}</td>
       <td class="n">${inputB(`price:${c}:price`, m.price, 'number', 'style="max-width:130px;text-align:right"')}</td><td>${src(m)}</td></tr>`; }).join('')}
@@ -2173,6 +2644,7 @@ const FACTOR_LABEL = {
 };
 function factorLabel(p) {
   if (FACTOR_LABEL[p]) return FACTOR_LABEL[p];
+  if (MODULE_FACTOR_META[p]) return MODULE_FACTOR_META[p][3];
   let m;
   if ((m = p.match(/^concrete\.(\w+)\.(\w+)$/))) return `Class ${m[1]} – ${m[2]} ${m[2] === 'cement' ? '(bags/m³)' : '(m³/m³)'}`;
   if ((m = p.match(/^chb\.mortar\.(\d)\.(\w+)$/))) return `${m[1]}" CHB mortar – ${m[2] === 'sand' ? 'sand (m³/m²)' : 'class ' + m[2] + ' cement (bags/m²)'}`;
@@ -2182,12 +2654,13 @@ function factorLabel(p) {
   return p.split('.').slice(1).join(' ').replace(/([A-Z])/g, ' $1').toLowerCase();
 }
 function vFactors() {
-  const groups = [['rebar', 'Rebar'], ['concrete', 'Concrete mix per m³ (40 kg bags)'], ['chb', 'CHB and laying mortar per m² of wall'], ['plaster', 'Plaster mortar'], ['boards', 'Board sizes'], ['ceiling', 'Ceiling'], ['partition', 'Partition'], ['waste', 'Waste allowances']];
+  const groups = [['rebar', 'Rebar'], ['concrete', 'Concrete mix per m³ (40 kg bags)'], ['chb', 'CHB and laying mortar per m² of wall'], ['plaster', 'Plaster mortar'], ['boards', 'Board sizes'], ['ceiling', 'Ceiling'], ['partition', 'Partition'], ['waste', 'Waste allowances'],
+    ['earth', 'Earthworks'], ['roof', 'Roofing'], ['tile', 'Tiles'], ['waterproof', 'Waterproofing'], ['paint', 'Painting'], ['steel', 'Structural steel']];
   const all = factorPaths(S.factors), fm = S.factorMeta, nv = Object.values(fm).filter(m => m.verified).length;
   return `<div class="stack">
   <div class="card"><div class="row between"><h2 style="margin:0">Estimating factors</h2><button class="btn sm" data-act="resetFactors">Reset to defaults</button></div>
     <p class="muted">These factors are saved with this project; changing one updates every element. <b>${nv} of ${all.length}</b> are verified.</p>
-    <div class="note">Concrete, mortar and plaster factors are designated as <b>${esc(SRC_FAJARDO)}</b>. The values have not been checked against the book. Enter the table and page you checked, then tick <b>Verified</b>. The 5" CHB mortar row is interpolated and has no cited source.</div></div>
+    <div class="note">Concrete, mortar and plaster factors are designated as <b>${esc(SRC_FAJARDO)}</b>. The values have not been checked against the book. Enter the table and page you checked, then tick <b>Verified</b>. The 5" CHB mortar row is interpolated and has no cited source. Coefficients of the newer calculators start <b>Not set</b>: items that need them are left out of the BOQ until you enter a value.</div></div>
   ${groups.map(([g, title]) => `<div class="card"><h2>${esc(title)}</h2><div class="tbl-wrap"><table>
     <tr><th>Factor</th><th class="n">Value</th><th>Source</th><th>Table / page checked</th><th>Verified</th></tr>
     ${all.filter(([p]) => p.split('.')[0] === g).map(([p, v]) => { const m = fm[p] || {source: '', ref: '', verified: false, note: ''}; return `<tr>
@@ -2195,15 +2668,15 @@ function vFactors() {
       <td class="n">${Array.isArray(v) ? inputB(`factor:${p}:value`, v.join(', '), 'text', 'style="max-width:160px"') : inputB(`factor:${p}:value`, v, 'number', 'style="max-width:110px;text-align:right"')}</td>
       <td style="max-width:320px">${esc(m.source)}${m.note ? `<div class="muted" style="font-size:11.5px">${esc(m.note)}</div>` : ''}</td>
       <td>${inputB(`factor:${p}:ref`, m.ref, 'text', 'placeholder="e.g. Table 2-3, p. 41"')}</td>
-      <td><label class="chk"><input type="checkbox" data-bind="factor:${esc(p)}:verified" ${m.verified ? 'checked' : ''}> <span class="pill ${m.verified ? 'good' : /interpolated/i.test(m.source) ? 'bad' : 'warn'}">${m.verified ? 'Verified' : /interpolated/i.test(m.source) ? 'Interpolated' : 'Unverified'}</span></label></td></tr>`; }).join('')}
+      <td><label class="chk"><input type="checkbox" data-bind="factor:${esc(p)}:verified" ${m.verified ? 'checked' : ''} ${v === null ? 'disabled' : ''}> <span class="pill ${v === null ? 'bad' : m.verified ? 'good' : /interpolated/i.test(m.source) ? 'bad' : 'warn'}">${v === null ? 'Not set' : m.verified ? 'Verified' : /interpolated/i.test(m.source) ? 'Interpolated' : 'Unverified'}</span></label></td></tr>`; }).join('')}
   </table></div></div>`).join('')}
   </div>`;
 }
 
 function vSelfTest() {
-  const res = runSelfTests(), ok = res.filter(r => r.ok).length;
+  const res = [...runSelfTests(), ...runModuleSelfTests()], ok = res.filter(r => r.ok).length;
   return `<div class="card" id="selftest"><h2>Self-test: <span class="${ok === res.length ? 'pass' : 'fail'}" id="selftest-summary">${ok}/${res.length} passed</span></h2>
-    <p class="muted">Worked examples calculated by hand and checked against the engine (engine ${esc(ENGINE_VERSION)}).</p>
+    <p class="muted">Worked examples calculated by hand and checked against the engine (engine ${esc(ENGINE_VERSION)}, modules ${esc(MODULES_VERSION)}). Coefficients in the module examples are test inputs, not defaults.</p>
     <table>${res.map(r => `<tr><td class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</td><td>${esc(r.name)}${r.fails.map(f => `<div class="err">${esc(f)}</div>`).join('')}</td></tr>`).join('')}</table></div>`;
 }
 

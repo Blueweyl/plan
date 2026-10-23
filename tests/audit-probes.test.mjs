@@ -43,7 +43,7 @@ test('A-C01 (open) coefficients have a recorded source but are unverified; 5" CH
   assert.match(fm['concrete.A.cement'].source, /Fajardo/);
   assert.equal(fm['concrete.A.cement'].verified, false, 'not yet checked against the book');
   assert.equal(fm['chb.mortar.5.B'].source, 'None – interpolated');
-  assert.equal(Object.values(fm).filter(m => m.verified).length, 8, 'only geometry and policy settings start verified');
+  assert.equal(Object.values(fm).filter(m => m.verified).length, 9, 'only geometry, policy settings and the steel density constant start verified');
 });
 
 // ---------- Browser / security / storage issues

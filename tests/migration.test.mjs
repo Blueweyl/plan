@@ -20,7 +20,9 @@ const migrate = raw => inApp(raw => { const {state, report} = migrate(raw); retu
 
 test('COMPAT-01 every v1 field of a saved project is preserved by the migration', async () => {
   const {state} = await migrate(fixture);
-  for (const k of ['project', 'settings', 'levels', 'elements', 'factors']) assert.deepEqual(state[k], fixture[k], k);
+  for (const k of ['project', 'settings', 'levels', 'elements']) assert.deepEqual(state[k], fixture[k], k);
+  for (const g of Object.keys(fixture.factors)) assert.deepEqual(state.factors[g], fixture.factors[g], 'factors.' + g);
+  assert.deepEqual(state.factors.paint, {primerCoverage: null, finishCoverage: null, puttyKgPerSqm: null}, 'new calculators: coefficients not set');
   for (const [c, p] of Object.entries(fixture.prices)) assert.deepEqual({name: state.prices[c].name, unit: state.prices[c].unit, price: state.prices[c].price}, p, 'price ' + c);
   for (const [c, l] of Object.entries(fixture.labor)) for (const k of Object.keys(l)) assert.equal(state.labor[c][k], l[k], `labor ${c}.${k}`);
   assert.equal(state.version, 2);
@@ -82,7 +84,7 @@ test('MIG-02 migration is idempotent', async () => {
 });
 
 test('MIG-03 (fixes A-H03) unknown element types are quarantined, reported and preserved through save/reload', async () => {
-  const f = clone(fixture); f.elements.push({id: 'el-x', type: 'roofing', mark: 'R1', level: 'lvl-ground', qty: 1, inp: {pitch: 30}});
+  const f = clone(fixture); f.elements.push({id: 'el-x', type: 'helipad', mark: 'H1', level: 'lvl-ground', qty: 1, inp: {pad: 30}});
   const {state, report, grand} = await migrate(f);
   assert.equal(state.elements.length, 18);
   assert.deepEqual(state.quarantine.elements, [f.elements[18]]);
@@ -91,7 +93,7 @@ test('MIG-03 (fixes A-H03) unknown element types are quarantined, reported and p
   const app = await openApp(browser, {state: f});
   await app.page.evaluate(() => App.addLevel());
   await app.page.reload();
-  assert.equal(await app.page.evaluate(() => S.quarantine.elements[0].type), 'roofing');
+  assert.equal(await app.page.evaluate(() => S.quarantine.elements[0].type), 'helipad');
   await app.close();
 });
 

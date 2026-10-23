@@ -264,3 +264,42 @@ A separate `<script id="auditor">` block holds 36 deterministic rules (full list
 - An audit takes about 0.3 s on a 1,000-element project (measured in Chromium), and it runs once per change.
 - Overlap and unit rules are heuristics with stated bounds. They make no claim about the design.
 - Approval is a single-user record until Phase 5 (revisions) and Phase 6 (accounts and roles).
+
+---
+
+## 7. Status after Phase 3: expanded calculators (2026-10-23)
+
+There are nine new calculators in a separate `<script id="modules">` block:
+- excavation & backfill
+- roofing
+- floor/wall tiles
+- waterproofing
+- painting
+- doors & windows (schedule)
+- structural steel
+- plumbing schedule
+- electrical schedule
+
+They register into the engine's tables. The engine block is still byte-identical to `original/estimator.v1.html`. With the modules loaded, every legacy BOQ row, including subtotals, still equals the baseline, even when a project also contains module items (P3-01, P3-07). Full definitions are in `MODULES.md`, generated from the code.
+
+### Decisions applied (no coefficients were supplied)
+- **No coefficient is invented.** Ten new coefficients start **not set** (null): swell %, roofing screws/m², tile adhesive kg/m² and bag size, grout density, membrane kg/m²/coat, primer L/m², paint coverages and putty kg/m². A quantity that needs one is **left out** and reported by the new critical rule **R-COEF-003** until a value is entered. Once entered, it remains unverified (R-COEF-001) until ticked.
+- **The only preset value is steel density, 7850 kg/m³.** It is a physical property and starts verified.
+- **No sample prices.**
+  - Specified products (tiles, sheets, ridge rolls, purlins, gutters, membranes, paint, doors/windows, locksets, sealant, pipes, wires, fixtures) are **priced inside the element** from your quotation. A missing cost is R-PRICE-001 (critical).
+  - The new catalog items (adhesive, grout, roofing screws, structural steel, bolts) have price 0 and source "not set".
+  - The new labor and equipment rates are 0 and are reported by R-PRICE-004, now also for %-of-materials labor.
+- **Equipment** (excavator per m³, crane per hour) is optional per element and kept as separate lines (`EQUIPMENT_CODES`). Phase 4 adds productivity and rental costing.
+- **Openings are not deducted from walls automatically.** That would be an inference; they are entered in the wall element.
+
+### New audit rules
+- **R-COEF-003 (critical):** a required coefficient is not set.
+- **R-MOD-002 (critical):** the inputs cannot produce the item (e.g. skirting taller than the tile).
+- Module plausibility checks feed R-UNIT-001: roof pitch in degrees, tile sizes in mm, excavation side slope.
+- Takeoff register: 18 scopes per level.
+
+### Remaining risks
+- Roofing assumes a uniform pitch: hips, valleys and dormers must be entered as separate items.
+- Excavation backfill uses the structure volume you enter; it does not read the footing elements.
+- Schedules count what the plans show; they do not design pipe or wire sizes.
+- The ten coefficients must be filled from Fajardo or product data sheets before any of these quantities reach the BOQ.

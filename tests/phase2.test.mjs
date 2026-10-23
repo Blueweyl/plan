@@ -249,7 +249,7 @@ test('R-TO-001…004 takeoff register', () => {
   assert.ok(r.includes('R-TO-004'), 'slabs N/A but present');
 });
 test('R-QUA-001 quarantined elements are reported', () => {
-  const st = clone(V2); st.quarantine.elements.push({type: 'roofing', mark: 'R1'});
+  const st = clone(V2); st.quarantine.elements.push({type: 'helipad', mark: 'H1'});
   assert.ok(has(st, 'R-QUA-001'));
 });
 

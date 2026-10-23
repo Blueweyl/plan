@@ -33,6 +33,8 @@ All rules are deterministic functions of the saved project and the engine's own 
 | R-PRICE-006 | info | Price date is not recorded | A user price/rate has no recorded date. |
 | R-COEF-001 | critical | Unverified estimating coefficients are used | A coefficient read by at least one costed element (see factorsUsed) is not ticked Verified. Severity follows the policy (critical by default). |
 | R-COEF-002 | critical | Interpolated coefficient without a source is used | A coefficient whose source is "interpolated" is used (currently the 5" CHB mortar row). |
+| R-COEF-003 | critical | Required coefficient is not set |  |
+| R-MOD-002 | critical | Inputs cannot produce this item |  |
 | R-DUP-001 | major | Possible duplicate elements | Two or more elements with the same type, level and normalised inputs. |
 | R-DUP-002 | major | Element mark used more than once | The same mark (case-insensitive) on more than one element. |
 | R-OVL-001 | minor | Suspected slab–beam concrete overlap | Beams and slabs on one level. Upper bound = Σ beam b × L × min(max slab t, beam h) × qty. |
