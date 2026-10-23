@@ -10,7 +10,7 @@ import {launch, openApp} from './lib/browser.mjs';
 const fixture = readJSON('tests/fixtures/sample-18.estimate.json');
 const BASE = readJSON('BASELINE_RESULTS.json');
 const clone = x => JSON.parse(JSON.stringify(x));
-const TABS = ['dashboard', 'elements', 'rebar', 'boq', 'audit', 'prices', 'factors', 'project', 'selftest'];
+const TABS = ['dashboard', 'elements', 'rebar', 'boq', 'audit', 'prices', 'labor', 'factors', 'project', 'selftest'];
 let browser;
 test.before(async () => { browser = await launch(); });
 test.after(async () => { await browser.close(); });
@@ -54,7 +54,7 @@ test('P1-03 every peso amount on the dashboard is a computed value (no fabricate
 test('P1-04 every navigation item opens a working view', async () => {
   const app = await openApp(browser, {state: fixture});
   const n = await app.page.locator('#nav button').count();
-  assert.equal(n, 8);
+  assert.equal(n, 9);
   for (let i = 0; i < n; i++) {
     const b = app.page.locator('#nav button').nth(i);
     await b.click();
@@ -264,5 +264,16 @@ test('P1-19 every non-geometry coefficient starts unverified and verification is
   const m = await app.page.evaluate(() => S.factorMeta['concrete.A.cement']);
   assert.equal(m.verified, true); assert.equal(m.ref, 'Table 1-3, p. 12');
   assert.equal(await app.page.evaluate(() => buildBOQ(S).totals.grand), BASE.boq.totals.grand, 'metadata never changes numbers');
+  await app.close();
+});
+
+test('P1-20 typing a value and leaving the field while the view re-renders does not break rendering', async () => {
+  const app = await openApp(browser, {state: fixture});
+  await app.page.evaluate(() => App.tab('project'));
+  const sel = 'input[data-bind="project:name"]';
+  await app.page.fill(sel, 'Renamed job');
+  await app.page.dispatchEvent(sel, 'change');   // the re-render removes the focused field, which fires change again
+  assert.equal(await app.page.evaluate(() => S.project.name), 'Renamed job');
+  assert.deepEqual(app.errors, []);
   await app.close();
 });

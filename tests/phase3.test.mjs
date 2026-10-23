@@ -201,7 +201,7 @@ test('P3-15 UI: every module can be added in the editor; BOQ, trace, factors and
   await app.page.evaluate(() => App.tab('audit'));
   assert.equal(await app.page.locator('select[data-bind^="takeoff:"]').count(), 18 * 2);
   await app.page.evaluate(() => App.tab('selftest'));
-  assert.equal(await app.page.textContent('#selftest-summary'), '18/18 passed');
+  assert.equal(await app.page.textContent('#selftest-summary'), '22/22 passed');
   for (const t of ['dashboard', 'elements', 'rebar', 'prices', 'project']) await app.page.evaluate(t => App.tab(t), t);
   assert.deepEqual(app.errors, []);
   await app.close();

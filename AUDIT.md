@@ -303,3 +303,39 @@ They register into the engine's tables. The engine block is still byte-identical
 - Excavation backfill uses the structure volume you enter; it does not read the footing elements.
 - Schedules count what the plans show; they do not design pipe or wire sizes.
 - The ten coefficients must be filled from Fajardo or product data sheets before any of these quantities reach the BOQ.
+
+---
+
+## 8. Status after Phase 4: labor and equipment (2026-10-23)
+
+A separate `<script id="labor">` block adds labor costing methods. Each labor item has **exactly one active method**; the parameters of inactive methods are kept but ignored, so switching methods can never count work twice (P4-06). The methods:
+
+| Method | Cost | Notes |
+|---|---|---|
+| % of materials | rate × materials of the division/level | legacy, unchanged |
+| Unit rate | BOQ quantity × ₱/unit | legacy, unchanged |
+| Productivity | BOQ quantity ÷ output per crew-day × crew day cost | Crew day cost = Σ workers × daily wage × (1 + burden %). Also reports crew-days, crew-hours (× hours/day × workers) and duration (÷ crews in parallel). |
+| Pakyaw | one lump sum for the project | Split across divisions and levels by quantity share; the parts add up to exactly the lump sum (P4-05). |
+| Rental (equipment lines) | max(billed hours/days, minimum) × rate | Hours come from the quantity (hr/day lines; hours↔days via hours/day) or from quantity ÷ output per hour/day. |
+
+**Equipment attachments:** optional equipment can be attached to any non-equipment labor item and is billed as an extra line. **Mobilization is charged once per machine for the whole project** (P4-07).
+
+**Defaults and safety:**
+- **No wages are preset.** All ten default trades start "not set"; a crew with a missing wage cannot be costed.
+- **There are no default crews, outputs, equipment rates or pakyaw amounts.**
+- A project that uses only the legacy methods gets **byte-identical** BOQ rows (P4-01).
+- Labor is priced on the quantity shown in the BOQ (2 dp), the same as the legacy unit-rate method, so printed lines multiply out.
+- Fields added in Phase 4 are hashed only when they are used, so **upgrading does not invalidate an existing approval** (P4-12).
+
+**New audit rules:**
+- **R-LAB-001 (critical):** a productivity item has no crew, a wage is missing, or the output is not set.
+- **R-LAB-002 (critical):** a pakyaw amount, equipment selection, rental rate or equipment output is not set.
+- **R-LAB-003 (major):** an equipment line and an attached machine are both costed in the same division/level, or the same machine is attached twice.
+- R-PRICE-004/005 now apply only to the unit-rate and %-of-materials methods.
+
+**Defect found and fixed:** `render()` could run inside itself. Replacing the view removes a focused input, which fires another `change` event. A re-entrancy guard now queues the nested render. Regression test P1-20 fails without the fix and passes with it.
+
+**Remaining risks:**
+- Productivity outputs and crew compositions are your inputs; none are suggested.
+- Statutory labor burden defaults to 0 % and must be set if your rates are basic wages.
+- Equipment fuel and operator costs are not modelled separately. Include them in the rental rate.

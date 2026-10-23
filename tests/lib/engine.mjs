@@ -18,6 +18,8 @@ const AUDITOR_EXPORTS = ['AUDIT_VERSION', 'RULES', 'SEV_ORDER', 'TAKEOFF_SCOPES'
 
 const MODULE_EXPORTS = ['MODULES_VERSION', 'MOD_DIVS', 'MODULE_FACTORS', 'MODULE_FACTOR_META', 'EQUIPMENT_CODES', 'collectPriced', 'runModuleSelfTests'];
 
+const LABOR_EXPORTS = ['LABOR_VERSION', 'LABOR_METHODS', 'DEFAULT_TRADES', 'defaultLaborSetup', 'crewDayCost', 'billUnits', 'runLaborSelfTests'];
+
 export function engineSource(file = APP_HTML, block = 'engine') {
   const html = fs.readFileSync(file, 'utf8');
   const m = html.match(new RegExp(`<script id="${block}">([\\s\\S]*?)<\\/script>`));
@@ -30,10 +32,10 @@ export function engineSource(file = APP_HTML, block = 'engine') {
 export function loadEngine(file = APP_HTML, {auditor = false} = {}) {
   let src = engineSource(file), names = EXPORTS;
   if (auditor) {
-    let mods = '';
-    try { mods = engineSource(file, 'modules'); } catch (e) { /* files before Phase 3 have no modules block */ }
-    src += '\n' + mods + '\n' + engineSource(file, 'auditor');
-    names = EXPORTS.concat(AUDITOR_EXPORTS, mods ? MODULE_EXPORTS : []);
+    const opt = b => { try { return engineSource(file, b); } catch (e) { return ''; } };   // blocks added in later phases
+    const mods = opt('modules'), labor = opt('labor');
+    src += '\n' + mods + '\n' + labor + '\n' + engineSource(file, 'auditor');
+    names = EXPORTS.concat(AUDITOR_EXPORTS, mods ? MODULE_EXPORTS : [], labor ? LABOR_EXPORTS : []);
   }
   const ctx = vm.createContext({});
   return vm.runInContext(src + `\n;({${names.join(',')}})`, ctx, {filename: path.basename(file) + '#engine'});
