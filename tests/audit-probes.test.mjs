@@ -1,6 +1,7 @@
-// Reproductions of the issues listed in AUDIT.md. Each test PASSES while the
+// Reproductions of the OPEN issues listed in AUDIT.md. Each test PASSES while the
 // issue still exists (it asserts the faulty behaviour). When a phase fixes an
-// issue, invert its test into a guarantee and move it to the relevant suite.
+// issue, its test is inverted into a guarantee and moved to that phase's suite
+// (Phase 1 fixes: tests/phase1.test.mjs and tests/migration.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -70,77 +71,22 @@ test('A-L05 slab "top bars at supports" adds bars but no tie-wire intersections'
   assert.equal(b.x, a.x);
 });
 
-test('A-C01 5" CHB mortar coefficients are interpolated, not from a cited table; no factor has a source', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'estimator.html'), 'utf8');
-  assert.match(html, /5" is interpolated/);
-  assert.doesNotMatch(html, /source:\s*['"]/i, 'no coefficient carries a source citation');
+test('A-C01 (open) coefficients have a recorded source but are unverified; 5" CHB mortar is interpolated', async () => {
+  const app = await openApp(browser);
+  const fm = await app.page.evaluate(() => defaultFactorMeta());
+  await app.close();
+  assert.match(fm['concrete.A.cement'].source, /Fajardo/);
+  assert.equal(fm['concrete.A.cement'].verified, false, 'not yet checked against the book');
+  assert.equal(fm['chb.mortar.5.B'].source, 'None – interpolated');
+  assert.equal(Object.values(fm).filter(m => m.verified).length, 8, 'only geometry and policy settings start verified');
 });
 
 // ---------- Browser / security / storage issues
-test('A-H01 XSS: a project file can run script when opened (unescaped element qty)', async () => {
-  const f = clone(fixture); f.elements[0].qty = '<img src=x onerror="window.__pwned=1">';
-  const app = await openApp(browser, {state: f});
-  await app.page.evaluate(() => App.tab('elements'));
-  await app.page.waitForTimeout(200);
-  assert.equal(await app.page.evaluate(() => window.__pwned), 1);
-  await app.close();
-});
-
-test('A-H01b XSS: unescaped factor keys on the Factors tab', async () => {
-  const f = clone(fixture); f.factors.concrete['<img src=x onerror="window.__pwned=2">'] = {cement: 1, sand: 1, gravel: 1};
-  const app = await openApp(browser, {state: f});
-  await app.page.evaluate(() => App.tab('factors'));
-  await app.page.waitForTimeout(200);
-  assert.equal(await app.page.evaluate(() => window.__pwned), 2);
-  await app.close();
-});
-
-test('A-H01c XSS: element id injected into an inline onclick handler', async () => {
-  const f = clone(fixture); f.elements[0].id = "x');window.__pwned=3;('";
-  const app = await openApp(browser, {state: f});
-  await app.page.evaluate(() => App.tab('elements'));
-  await app.page.locator('button', {hasText: 'Edit'}).first().click();
-  assert.equal(await app.page.evaluate(() => window.__pwned), 3);
-  await app.close();
-});
-
-test('A-C04b autosave failure (storage full / blocked) is swallowed with no message', async () => {
-  const app = await openApp(browser, {state: fixture});
-  await app.page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException('full', 'QuotaExceededError'); }; });
-  await app.page.evaluate(() => App.addLevel());
-  const visible = await app.page.evaluate(() => /not saved|failed|error/i.test(document.body.innerText));
-  assert.equal(visible, false, 'user is not told the change was not saved');
-  assert.deepEqual(app.errors, []);
-  await app.close();
-});
-
-test('A-H02 "Open…" replaces the current project without confirmation or backup', async () => {
-  const app = await openApp(browser, {state: fixture});
-  const other = clone(fixture); other.project.name = 'Other job'; other.elements = [];
-  const file = path.join(ROOT, 'tests/fixtures/.tmp-open.json');
-  fs.writeFileSync(file, JSON.stringify(other));
-  try {
-    await app.page.setInputFiles('#fileIn', file);
-    await app.page.waitForFunction(() => S.project.name === 'Other job');
-    assert.equal(await app.page.evaluate(() => S.elements.length), 0, '18 elements replaced');
-    assert.deepEqual(app.dialogs, [], 'no confirmation');
-  } finally { fs.unlinkSync(file); }
-  await app.close();
-});
-
 test('A-M02 CSV export allows formula injection from user-editable names', async () => {
   const f = clone(fixture); f.prices.CEM.name = '=HYPERLINK("http://example.invalid","x")';
   const app = await openApp(browser, {state: f});
   const csv = await app.page.evaluate(() => boqCsv());
   assert.ok(csv.includes('"=HYPERLINK('), 'cell starts with "=" and is not neutralised');
-  await app.close();
-});
-
-test('A-M03 default project date uses UTC, so early-morning Manila gets yesterday', async () => {
-  const app = await openApp(browser, {contextOptions: {timezoneId: 'Asia/Manila'}});
-  const d = await app.page.evaluate(() => { const real = Date; const t = new real('2026-10-23T06:30:00+08:00').getTime();
-    globalThis.Date = class extends real { constructor(...a) { super(...(a.length ? a : [t])); } }; return defaultState().project.date; });
-  assert.equal(d, '2026-10-22');
   await app.close();
 });
 

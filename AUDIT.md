@@ -184,3 +184,34 @@ Per the brief ("report critical issues before proceeding"), Phase 1 should start
 - **Waste allowances:** rebar waste comes only from cutting optimization; `allowancePct` defaults to 0. CHB, boards and metal default to 5%.
 - **Rounding:** pc, bag and set are rounded up per level and division; other units to 2 dp.
 - **Markups:** OCM, profit and contingency are each a % of direct cost. VAT is applied to direct + markups.
+
+---
+
+## 5. Status after Phase 1 (2026-10-23)
+
+### Decisions recorded
+| Question | Decision | Effect |
+|---|---|---|
+| Coefficients | Use **Max Fajardo** | Concrete, CHB mortar (4" and 6") and plaster factors now carry the source *Max B. Fajardo Jr., Simplified Construction Estimate*. They **stay unverified** until a person records the table/page and ticks Verified, because the values have not been checked against the book. The 5" mortar row keeps the source "None – interpolated". |
+| Design file | Rebuild from the screenshot | New layout: sidebar and top bar, KPI cards, cost breakdown, BOQ division cards, Needs attention, Project intelligence, Quick actions, light/dark theme. |
+| Reference formulas | `estimator.html` | The engine block is byte-identical to `original/estimator.v1.html`; the golden master is unchanged. |
+
+### Finding status
+| ID | Status | How | Test |
+|---|---|---|---|
+| A-C01 | **Open, mitigated** | Every coefficient has a provenance record (`factorMeta`: source, table/page, verified, note) shown on the Factors tab and counted under Needs attention. Blocking approval is Phase 2. | A-C01 (probe), P1-19 |
+| A-C02 | **Open, mitigated** | The engine still omits the bar size, but the Rebar schedule shows "Not purchasable" and Needs attention shows it as critical. The engine-level fix (a finding plus a fallback line) is Phase 2. | A-C02 (probe), P1-18 |
+| A-C03 | **Fixed** | Migration moves orphans to "Unassigned (recovered)" and reports them. | MIG-04, MIG-04b |
+| A-C04 | **Fixed** | Corrupt data is kept byte-identical under a backup key. If the backup fails, autosave pauses. Save failures show "Not saved" in the top bar and a critical item on the dashboard. | MIG-05, MIG-05b, P1-09 |
+| A-H01 | **Fixed** | Values are type-checked at load (unsafe ids replaced, bad numbers quarantined, unknown factor keys quarantined, prototype keys ignored). Every rendered value is escaped. Inline handlers are replaced by event delegation on `data-act`/`data-bind`. | MIG-06, MIG-06b, P1-11 (18-vector corpus) |
+| A-H02 | **Fixed** | Open asks for confirmation and keeps a local backup; backups can be restored. | P1-12 |
+| A-H03 | **Fixed** | Unknown element types are quarantined, preserved through save and reload, and reported. | MIG-03 |
+| A-H04, A-H05 | **Open, mitigated** | Elements producing no quantities are flagged on the Elements list, in the editor and under Needs attention. Field validation rules are Phase 2. | probes, P1 dashboard |
+| A-M03 | **Fixed** | Default date uses the local calendar date. | P1-13 |
+| A-M08 | **Fixed** | Schema v2 with a versioned, idempotent `migrate()`. | MIG-01, MIG-02 |
+| A-L03 | Partly | Local backups before New, Open and Restore. Per-action undo is not implemented. | P1-12 |
+| A-L04 | Partly | `aria-current` on nav, a labelled dialog, focus kept on keyboard navigation, visible focus rings. | P1-15 |
+| A-M01, A-M02, A-M04, A-M05, A-M06, A-M07, A-M09, A-M10, A-M11, A-L01, A-L02, A-L05, A-L06 | Open | Planned for Phase 2 (auditor rules, export policy). | probes |
+
+### Correction to Phase 0
+The Phase 0 baseline stored the per-level material and labor maps as empty `{}`: the serializer's `instanceof Map` check fails for objects created in the Node VM context. Every other recorded value was correct. The serializer now detects Maps by type tag. The baseline is regenerated **from the untouched `original/estimator.v1.html`** (engine and exports) and is identical to Phase 0 on every value it already had.

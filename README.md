@@ -17,14 +17,15 @@ Open it in Chrome or Edge by double-clicking. It needs no install, no server and
   - Exports to Excel, CSV, or PDF (through Print).
 
 ## Workflow
-1. **Project tab:** set the project info and levels/floors.
+0. **Dashboard:** total cost, rebar, concrete and CHB at a glance; cost by division and level; what needs attention; quick actions. Light/dark toggle in the top bar.
+1. **Project & data tab:** set the project info and levels/floors.
 2. **Elements tab:** add each element from the plans: mark, level, quantity and dimensions. Results preview live.
 3. **Rebar schedule tab:** the bar list and the number of bars to buy, per diameter.
 4. **BOQ & Cost tab:** the costed bill of quantities, with export.
 5. **Prices / Factors tabs:** your supplier prices and labor rates, and the estimating factors.
    - The sample prices and the factors marked VERIFY must be checked against your own references.
 
-Work autosaves in the browser. Use **Save project file** (`.estimate.json`) to keep a permanent copy or move it to another PC.
+Work autosaves in the browser; the top bar shows whether the last autosave worked and how many changes are not yet in a project file. Local backups are kept before New, Open and Restore. Use **Save project file** (`.estimate.json`) to keep a permanent copy or move it to another PC.
 
 ## Tests
 - In the app, the **Self-test** link in the footer runs hand-calculated worked examples.

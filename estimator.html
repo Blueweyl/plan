@@ -1,110 +1,214 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Structural Estimator</title>
+<title>Construction Estimator</title>
+<script>try { var t = localStorage.getItem('estimator.theme'); if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
 <style>
 :root{
-  --bg:#f4f5f7; --panel:#ffffff; --ink:#1d2330; --muted:#5f6b7a; --line:#dde1e7;
-  --accent:#1f5fbf; --accent-ink:#ffffff; --accent-soft:#e7effb;
-  --ok:#1d7a46; --bad:#b3261e; --warn:#8a5a00; --warn-soft:#fff4d6;
-  --head:#eef1f5; --radius:8px;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#14171c; --panel:#1c2027; --ink:#e6e9ee; --muted:#9aa4b2; --line:#2e343e;
-    --accent:#5b9cf5; --accent-ink:#0d1420; --accent-soft:#1d2a3d;
-    --ok:#5cc48a; --bad:#f2847c; --warn:#e6b450; --warn-soft:#2e2814; --head:#232832;
-  }
+  --bg:#f6f5f1; --panel:#ffffff; --panel-2:#fbfaf7; --ink:#1b2230; --muted:#5c6676; --line:#e5e2da;
+  --accent:#1f5fbf; --accent-ink:#ffffff; --accent-soft:#e8f0fc;
+  --orange:#c45c00; --orange-soft:#fff1e3;
+  --good:#1d8a4e; --good-soft:#e5f5ec; --warn:#9a6700; --warn-soft:#fff6dd; --bad:#c62828; --bad-soft:#fde8e8;
+  --d-REBAR:#2a78d6; --d-CONC:#1baf7a; --d-FORM:#eda100; --d-MAS:#e34948; --d-PART:#6250d6; --d-CEIL:#e87ba4;
+  --shadow:0 1px 2px rgba(20,30,50,.06),0 2px 8px rgba(20,30,50,.05); --radius:10px;
 }
 :root[data-theme="dark"]{
-  --bg:#14171c; --panel:#1c2027; --ink:#e6e9ee; --muted:#9aa4b2; --line:#2e343e;
-  --accent:#5b9cf5; --accent-ink:#0d1420; --accent-soft:#1d2a3d;
-  --ok:#5cc48a; --bad:#f2847c; --warn:#e6b450; --warn-soft:#2e2814; --head:#232832;
+  --bg:#161b24; --panel:#1e2430; --panel-2:#232a37; --ink:#e8ecf2; --muted:#a3adbd; --line:#2f3747;
+  --accent:#5b9cf5; --accent-ink:#0d1420; --accent-soft:#1f2c42;
+  --orange:#ff9a3d; --orange-soft:#3a2a1a;
+  --good:#5cc48a; --good-soft:#1c3327; --warn:#e6b450; --warn-soft:#33291a; --bad:#f2847c; --bad-soft:#3a2222;
+  --d-REBAR:#3987e5; --d-CONC:#199e70; --d-FORM:#c98500; --d-MAS:#d63f4a; --d-PART:#9085e9; --d-CEIL:#d55181;
+  --shadow:none;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
-header{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;position:sticky;top:0;z-index:5}
-header h1{font-size:16px;margin:0;font-weight:650}
-header .proj{color:var(--muted);flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-nav{display:flex;gap:2px;flex-wrap:wrap;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line)}
-nav button{border:0;background:none;color:var(--muted);padding:10px 12px;font:inherit;cursor:pointer;border-bottom:2px solid transparent}
-nav button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
-main{padding:16px;max-width:1200px;margin:0 auto}
-section.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px}
-section.card h2{font-size:15px;margin:0 0 10px}
-section.card h3{font-size:13px;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:6px 11px;font:inherit;cursor:pointer;white-space:nowrap}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.side{background:var(--panel);border-right:1px solid var(--line);padding:14px 10px;position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:9px;padding:4px 8px 14px;font-weight:700}
+.brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--d-CONC));display:grid;place-items:center;color:#fff;font-size:15px}
+.brand small{display:block;font-weight:500;color:var(--muted);font-size:11px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:10px;border:0;background:none;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--muted);text-align:left;width:100%}
+.nav button:hover{background:var(--panel-2);color:var(--ink)}
+.nav button[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav svg{width:18px;height:18px;flex:none}
+.nav .count{margin-left:auto;font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:0 7px;color:var(--muted)}
+.side-foot{margin-top:auto;padding:10px 8px 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
+.top{position:sticky;top:0;z-index:6;background:var(--panel);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 20px}
+.top .title{min-width:0;flex:1 1 220px}
+.top h1{font-size:16px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .sub{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);white-space:nowrap}
+.chip.good{color:var(--good);background:var(--good-soft);border-color:transparent}
+.chip.warn{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.chip.bad{color:var(--bad);background:var(--bad-soft);border-color:transparent;font-weight:600}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+main{padding:20px;max-width:1320px;width:100%;margin:0 auto}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
 .btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.nav button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.btn.sm{padding:3px 8px;font-size:12px}
+.btn.cta{background:var(--orange);color:#fff;border-color:var(--orange)}
+:root[data-theme="dark"] .btn.cta{color:#1b1206}
+.btn.sm{padding:3px 9px;font-size:12px}
 .btn.danger{color:var(--bad)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.menu-btn{display:none}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);min-width:0}
+.card h2{font-size:15px;margin:0 0 12px}
+.card h3{font-size:12px;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.stack{display:grid;gap:16px}
+.stack>*,.g-2>*,.g-kpi>*,.g-div>*,details.boqdiv{min-width:0}
+.g-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.g-2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px}
+.g-div{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.kpi{position:relative;overflow:hidden;padding:14px 16px 14px 18px}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c,var(--accent))}
+.kpi .lbl{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.kpi .ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--c,var(--accent)) 15%,transparent);color:var(--c,var(--accent))}
+.kpi .ico svg{width:16px;height:16px}
+.kpi .val{font-size:24px;font-weight:700;margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .hint{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi.hero .val{color:var(--orange)}
+.divcard{border-top:4px solid var(--c);padding:14px 16px;cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit}
+.divcard:hover{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset}
+.divcard .name{display:flex;align-items:center;gap:8px;font-weight:600}
+.divcard .sw{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.divcard .amt{font-size:20px;font-weight:700;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.divcard .meta{font-size:12px;color:var(--muted)}
+.split{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--panel-2);margin:10px 0 4px;gap:2px}
+.split span{display:block;height:100%}
+.bars{display:grid;gap:10px}
+.bar-row{display:grid;grid-template-columns:150px minmax(0,1fr) 150px;gap:10px;align-items:center;position:relative}
+.bar-row .nm{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{height:14px;background:var(--panel-2);border-radius:0 4px 4px 0;position:relative}
+.fill{height:100%;border-radius:0 4px 4px 0;background:var(--c);min-width:2px}
+.bar-row .v{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+.bar-row .v small{color:var(--muted);margin-left:6px}
+.bar-row:hover .tip,.bar-row:focus-within .tip{display:block}
+.tip{display:none;position:absolute;z-index:3;left:160px;top:-38px;background:var(--ink);color:var(--panel);font-size:12px;padding:6px 9px;border-radius:6px;white-space:nowrap;pointer-events:none}
+.att{display:grid;gap:8px}
+.att-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:9px 10px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line)}
+.sev{font-size:11px;font-weight:700;border-radius:5px;padding:2px 6px;white-space:nowrap}
+.sev.critical{background:var(--bad-soft);color:var(--bad)}
+.sev.warning{background:var(--warn-soft);color:var(--warn)}
+.sev.info{background:var(--accent-soft);color:var(--accent)}
+.sev.ok{background:var(--good-soft);color:var(--good)}
+.att-item .d{font-size:12px;color:var(--muted)}
+.qa{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.qa .btn{justify-content:flex-start}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.fact{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.fact .k{font-size:12px;color:var(--muted)}
+.fact .v{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}
+.fact .s{font-size:11.5px;color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 14px}
 label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
-label.f span.u{color:var(--muted);font-size:11px}
+label.f .u{font-size:11px}
 label.chk{display:flex;gap:6px;align-items:center;font-size:13px}
-input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:5px 7px;width:100%;min-width:0}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
 input[type=checkbox]{width:auto}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
 .tbl-wrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
-th{background:var(--head);font-weight:600;white-space:nowrap}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--panel-2);font-weight:600;white-space:nowrap;color:var(--muted);font-size:12px}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-tr.div td{background:var(--accent-soft);font-weight:650}
-tr.lvl td{font-weight:600;color:var(--muted)}
-tr.sub td{font-weight:600;border-top:1px solid var(--ink)}
-tr.tot td{font-weight:700;font-size:14px}
+tr.lvl td{font-weight:600;color:var(--muted);background:var(--panel-2)}
+tr.sub td{font-weight:650;border-top:1px solid var(--muted)}
+tr.tot td{font-weight:750;font-size:15px}
+tr.tot td.n{color:var(--orange)}
 .muted{color:var(--muted)}
-.note{background:var(--warn-soft);color:var(--warn);border-radius:6px;padding:8px 10px;font-size:12.5px;margin:8px 0}
-.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--head);color:var(--muted)}
+.note{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 11px;font-size:12.5px;margin:8px 0}
+.note.bad{background:var(--bad-soft);color:var(--bad)}
+.note.info{background:var(--accent-soft);color:var(--accent)}
+.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.good{color:var(--good);background:var(--good-soft);border-color:transparent}
+.pill.warn{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.pill.bad{color:var(--bad);background:var(--bad-soft);border-color:transparent}
+.tchip{display:inline-flex;align-items:center;gap:6px}
+.tchip::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--c)}
 .addgrp{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
 .secttl{grid-column:1/-1;font-size:12px;font-weight:650;color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:3px;margin-top:6px}
-dialog{border:1px solid var(--line);border-radius:10px;padding:0;background:var(--panel);color:var(--ink);width:min(980px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
-dialog::backdrop{background:rgba(0,0,0,.4)}
+details.boqdiv{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:var(--radius);background:var(--panel);margin-bottom:12px;box-shadow:var(--shadow)}
+details.boqdiv>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 16px;font-weight:650}
+details.boqdiv>summary::-webkit-details-marker{display:none}
+details.boqdiv>summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+details.boqdiv[open]>summary::before{transform:rotate(90deg)}
+details.boqdiv>summary .amt{margin-left:auto;font-variant-numeric:tabular-nums}
+details.boqdiv .inner{padding:0 16px 14px}
+.empty{text-align:center;padding:36px 16px}
+.empty .big{width:64px;height:64px;margin:0 auto 10px;border-radius:16px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.empty .big svg{width:32px;height:32px}
+dialog{border:1px solid var(--line);border-radius:12px;padding:0;background:var(--panel);color:var(--ink);width:min(980px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(10,15,25,.45)}
 .dlg-h{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
 .dlg-h h2{font-size:15px;margin:0}
 .dlg-b{padding:14px 16px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;overflow:auto;max-height:calc(100vh - 150px)}
+.dlg-b.one{grid-template-columns:1fr}
 .dlg-f{padding:10px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
-.preview{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;align-self:start}
+.preview{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;align-self:start}
 .preview h4{margin:8px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase}
 .preview table{font-size:12px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
 .kv b{font-weight:600}
-.pass{color:var(--ok);font-weight:600}.fail{color:var(--bad);font-weight:600}
-footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+.pass{color:var(--good);font-weight:600}.fail{color:var(--bad);font-weight:600}
 .err{color:var(--bad);font-size:12px}
-@media (max-width:760px){.dlg-b{grid-template-columns:1fr}}
+.print-only{display:none}
+.scrim{display:none}
+@media (max-width:1000px){.g-2{grid-template-columns:1fr}}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;bottom:0;width:250px;z-index:20;transform:translateX(-100%);transition:transform .2s;box-shadow:4px 0 20px rgba(0,0,0,.2)}
+  body.nav-open .side{transform:none}
+  body.nav-open .scrim{display:block;position:fixed;inset:0;background:rgba(10,15,25,.35);z-index:15}
+  .btn.menu-btn{display:inline-flex}
+  .top{padding:10px 16px}
+  main{padding:16px}
+}
+@media (max-width:760px){.dlg-b{grid-template-columns:1fr}.bar-row{grid-template-columns:96px minmax(0,1fr) 110px}.tip{left:100px}.top .actions .lbl{display:none}}
+@media (max-width:520px){.top .title{flex-basis:calc(100% - 60px)}.top .chips{order:3;width:100%}.top .actions{order:4}}
 @media print{
-  header,nav,footer,.noprint{display:none!important}
+  .side,.top,.noprint,.scrim{display:none!important}
+  .shell{display:block}
   body{background:#fff;color:#000}
   main{padding:0;max-width:none}
-  section.card{border:0;padding:0}
+  .card,details.boqdiv{box-shadow:none;border-color:#bbb}
+  .print-only{display:block}
   th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  tr.div td{background:#e6e6e6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
 </head>
 <body>
-<header>
-  <h1>Structural &amp; Architectural Estimator</h1>
-  <div class="proj" id="projName"></div>
-  <div class="row noprint">
-    <button class="btn" onclick="App.newProject()">New</button>
-    <button class="btn" onclick="App.openFile()">Open…</button>
-    <button class="btn pri" onclick="App.saveFile()">Save project file</button>
-    <input type="file" id="fileIn" accept=".json,application/json" hidden>
+<div class="shell">
+  <aside class="side" id="side" aria-label="Main navigation">
+    <div class="brand"><span class="logo" aria-hidden="true">▦</span><span>Construction Estimator<small>Structural &amp; Architectural · PH</small></span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot" id="sideFoot"></div>
+  </aside>
+  <div class="scrim" data-act="closeNav"></div>
+  <div class="mainwrap">
+    <header class="top">
+      <button class="btn ghost menu-btn" data-act="openNav" aria-label="Open navigation">☰</button>
+      <div class="title"><h1 id="projName"></h1><div class="sub" id="projSub"></div></div>
+      <div class="row chips"><span id="revChip"></span><span id="saveStatus" role="status" aria-live="polite"></span></div>
+      <div class="row actions">
+        <button class="btn" data-act="toggleTheme" id="themeBtn" aria-label="Toggle light or dark theme"></button>
+        <button class="btn" data-act="newProject">New</button>
+        <button class="btn" data-act="openFile">Open…</button>
+        <button class="btn pri" data-act="saveFile">Save file</button>
+        <input type="file" id="fileIn" accept=".json,application/json" hidden>
+      </div>
+    </header>
+    <main id="view"></main>
   </div>
-</header>
-<nav id="tabs"></nav>
-<main id="view"></main>
-<footer class="noprint">
-  Autosaves in this browser. Use <b>Save project file</b> for a permanent copy.
-  · <a href="#" onclick="App.tab('selftest');return false">Self-test</a>
-</footer>
+</div>
 <dialog id="dlg"></dialog>
 
 <!-- ===================================================================== -->
@@ -722,96 +826,393 @@ function runSelfTests() {
 </script>
 
 <!-- ===================================================================== -->
-<!-- APP: state, screens, forms, saving, export                            -->
+<!-- APP: state, migration, storage, dashboard, screens, export            -->
 <!-- ===================================================================== -->
 <script id="app">
 'use strict';
-const KEY = 'estimator.v1';
+// ---- Constants
+const KEY = 'estimator.v1', TAB_KEY = 'estimator.v1.tab', THEME_KEY = 'estimator.theme';
+const BACKUP_PREFIX = 'estimator.backup.', PRE_V2_KEY = 'estimator.v1.pre-v2-backup', MAX_BACKUPS = 5;
+const APP_VERSION = '1.1.0', ENGINE_VERSION = '1.0.0', SCHEMA_VERSION = 2;
+const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const SRC_FAJARDO = 'Max B. Fajardo Jr., Simplified Construction Estimate';
+
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const peso = x => '₱' + fmt(x);
+const pad = n => String(n).padStart(2, '0');
+const localDate = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const nowIso = () => new Date().toISOString();
+const clock = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString('en-PH', {hour: 'numeric', minute: '2-digit'}); };
+const isNum = v => typeof v === 'number' ? Number.isFinite(v) : (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)));
+const hasOwn = (o, k) => o != null && Object.prototype.hasOwnProperty.call(o, k);
+const clone = x => JSON.parse(JSON.stringify(x ?? null));
+const isObj = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 
+// ---- Coefficient provenance
+function factorPaths(F, p = '') {
+  return Object.entries(F).flatMap(([k, v]) => isObj(v) ? factorPaths(v, p + k + '.') : [[p + k, v]]);
+}
+function defaultFactorMeta() {
+  const m = {};
+  for (const [p] of factorPaths(defaultFactors())) {
+    let source = 'Developer default – no cited source', verified = false, note = '';
+    if (/^(concrete\.|chb\.mortar\.[46]\.|plaster\.)/.test(p)) { source = SRC_FAJARDO; note = 'Designated by the user. Table and page not yet recorded; values not yet checked against the book.'; }
+    else if (/^chb\.mortar\.5\./.test(p)) { source = 'None – interpolated'; note = 'Interpolated between the 4" and 6" rows by the developer. Not from a cited table.'; }
+    else if (p === 'chb.perSqm') { source = 'Geometry: 1 m² ÷ (0.40 m × 0.20 m), block face incl. joint'; verified = true; }
+    else if (p === 'chb.courseH') { source = 'Geometry: 0.20 m block height incl. joint'; verified = true; }
+    else if (p === 'ceiling.bdftPerM') { source = 'Geometry: 2 in × 2 in × 3.2808 ft ÷ 12'; verified = true; }
+    else if (/^rebar\.tieHook/.test(p)) source = 'NSCP seismic hook: 6d, not less than 75 mm (section not recorded)';
+    else if (p === 'rebar.hook90D') source = 'NSCP standard 90° hook: 12d extension (section not recorded)';
+    else if (p === 'rebar.lapFactor') source = 'Rule of thumb 40d (not an NSCP-computed development length)';
+    else if (p === 'rebar.commercial') source = 'PH market commercial bar lengths';
+    else if (/^boards\./.test(p)) source = 'Standard 4 × 8 ft sheet';
+    else if (/^waste\./.test(p) || p === 'rebar.allowancePct') { source = 'Project setting (policy, not a coefficient)'; verified = true; }
+    m[p] = {source, ref: '', verified, note};
+  }
+  return m;
+}
+const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? undefined : a[k]), o);
+
+// ---- State
 function defaultState() {
+  const t = nowIso();
   return {
-    version: 1,
-    project: {name: 'New project', location: '', owner: '', date: new Date().toISOString().slice(0, 10), notes: ''},
+    version: SCHEMA_VERSION, engineVersion: ENGINE_VERSION,
+    meta: {createdAt: t, updatedAt: t, appVersion: APP_VERSION, migratedFrom: null, migrationReport: [], revision: 0, status: 'draft', fileSavedAt: null, changesSinceFile: 0},
+    project: {name: 'New project', location: '', owner: '', date: localDate(), notes: ''},
     settings: {stock: 'auto', ocm: 8, profit: 10, contingency: 5, vat: 12},
     levels: [{id: uid(), name: 'Ground floor', h: 3.0}],
     elements: [],
-    prices: Object.fromEntries(MATERIALS.map(([c, n, u, p]) => [c, {name: n, unit: u, price: p}])),
-    labor: Object.fromEntries(LABOR.map(([c, d, n, u, m, r]) => [c, {div: d, name: n, unit: u, mode: m, rate: r}])),
+    prices: Object.fromEntries(MATERIALS.map(([c, n, u, p]) => [c, {name: n, unit: u, price: p, source: 'sample', updatedAt: null}])),
+    labor: Object.fromEntries(LABOR.map(([c, d, n, u, m, r]) => [c, {div: d, name: n, unit: u, mode: m, rate: r, source: 'sample', updatedAt: null}])),
     factors: defaultFactors(),
+    factorMeta: defaultFactorMeta(),
+    quarantine: {elements: [], invalidValues: [], unknownKeys: {}},
   };
 }
-function deepMerge(base, over) {
-  if (over === undefined || over === null) return base;
-  if (Array.isArray(base) || typeof base !== 'object' || base === null) return over;
-  const out = {...base};
-  for (const k of Object.keys(over)) out[k] = (k in base) ? deepMerge(base[k], over[k]) : over[k];
+
+// Pure migration: any saved project (v1 or v2) -> v2 state + report. Nothing is
+// dropped: unusable parts go to state.quarantine and are listed in the report.
+function migrate(raw) {
+  const report = [], st = defaultState(), Q = st.quarantine;
+  const R = (level, code, message, path = '') => report.push({level, code, message, path});
+  const short = v => { let s; try { s = typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { s = String(v); } return String(s).slice(0, 200); };
+  const bad = (path, value, used) => { Q.invalidValues.push({path, value: short(value), usedInstead: used}); R('warn', 'INVALID_VALUE', `${path}: "${short(value)}" is not a valid value; ${JSON.stringify(used)} used instead.`, path); };
+  const unknown = (group, key, value) => { (Q.unknownKeys[group] = Q.unknownKeys[group] || {})[key] = clone(value); R('warn', 'UNKNOWN_KEY', `Unknown ${group} entry "${key}" kept in quarantine.`, group + '.' + key); };
+  const str = (v, d = '') => (v === undefined || v === null) ? d : String(v);
+  if (raw === null || raw === undefined) return {state: st, report};
+  if (!isObj(raw)) { R('error', 'NOT_A_PROJECT', 'The data is not a project; an empty project was started.'); return {state: st, report}; }
+  const from = isNum(raw.version) ? Number(raw.version) : 1;
+  if (from > SCHEMA_VERSION) R('warn', 'NEWER_VERSION', `Saved by a newer app (schema ${from}). Unknown parts are kept in quarantine.`);
+
+  const KNOWN_ROOT = ['version', 'engineVersion', 'meta', 'project', 'settings', 'levels', 'elements', 'prices', 'labor', 'factors', 'factorMeta', 'quarantine'];
+  for (const k of Object.keys(raw)) if (!KNOWN_ROOT.includes(k)) unknown('root', k, raw[k]);
+
+  if (isObj(raw.project)) for (const k of ['name', 'location', 'owner', 'date', 'notes']) if (raw.project[k] !== undefined) st.project[k] = str(raw.project[k]);
+
+  if (isObj(raw.settings)) {
+    const s = raw.settings;
+    if (s.stock !== undefined) {
+      if (s.stock === 'auto') st.settings.stock = 'auto';
+      else if (isNum(s.stock) && Number(s.stock) > 0) st.settings.stock = String(s.stock);
+      else bad('settings.stock', s.stock, 'auto');
+    }
+    for (const k of ['ocm', 'profit', 'contingency', 'vat']) if (s[k] !== undefined) { if (isNum(s[k])) st.settings[k] = Number(s[k]); else bad('settings.' + k, s[k], st.settings[k]); }
+  }
+
+  // Levels
+  const idMap = new Map(), levels = [];
+  (Array.isArray(raw.levels) ? raw.levels : []).forEach((l, i) => {
+    if (!isObj(l)) { bad(`levels[${i}]`, l, 'skipped'); return; }
+    let id = str(l.id);
+    if (!ID_RE.test(id) || levels.some(x => x.id === id)) { const nid = uid(); R('info', 'LEVEL_ID_REPLACED', `Level "${str(l.name)}" had an unsafe or duplicate id; a new id was assigned.`, `levels[${i}].id`); if (!idMap.has(id)) idMap.set(id, nid); id = nid; }
+    else idMap.set(id, id);
+    let h = 3.0;
+    if (l.h !== undefined) { if (isNum(l.h)) h = Number(l.h); else bad(`levels[${i}].h`, l.h, 3.0); }
+    levels.push({id, name: str(l.name, 'Level ' + (i + 1)), h});
+  });
+
+  // Elements
+  let recovered = null;
+  const ids = new Set(), elIn = Array.isArray(raw.elements) ? raw.elements : [];
+  elIn.forEach((e, i) => {
+    if (!isObj(e)) { Q.elements.push(clone(e)); R('warn', 'INVALID_ELEMENT', `Element #${i + 1} is not valid; kept in quarantine.`, `elements[${i}]`); return; }
+    const mark = str(e.mark, '#' + (i + 1));
+    if (!hasOwn(TYPES, e.type)) { Q.elements.push(clone(e)); R('warn', 'UNKNOWN_TYPE', `Element ${mark} has unknown type "${str(e.type)}". It is kept in quarantine and is not costed.`, `elements[${i}]`); return; }
+    let id = str(e.id);
+    if (!ID_RE.test(id) || ids.has(id)) { id = uid(); R('info', 'ELEMENT_ID_REPLACED', `Element ${mark} had an unsafe or duplicate id; a new id was assigned.`, `elements[${i}].id`); }
+    ids.add(id);
+    let level = idMap.get(str(e.level));
+    if (!level) {
+      if (!recovered) { recovered = {id: uid(), name: 'Unassigned (recovered)', h: 3.0}; levels.push(recovered); }
+      level = recovered.id;
+      R('warn', 'ORPHAN_ELEMENT', `Element ${mark}: level "${str(e.level)}" does not exist. Moved to "Unassigned (recovered)" so it is costed.`, `elements[${i}].level`);
+    }
+    let qty = 0;
+    if (isNum(e.qty)) qty = Number(e.qty); else bad(`elements[${i}].qty (${mark})`, e.qty, 0);
+    const fields = TYPES[e.type].fields.filter(f => f.k), inp = {};
+    for (const [k, v] of Object.entries(isObj(e.inp) ? e.inp : {})) {
+      if (BAD_KEYS.has(k)) { bad(`elements[${i}].inp.${k}`, v, 'removed'); continue; }
+      const f = fields.find(x => x.k === k);
+      if (!f) { inp[k] = clone(v); continue; }                       // unknown inputs are kept; never rendered
+      if (f.t === 'num') { if (isNum(v)) inp[k] = Number(v); else { bad(`elements[${i}].inp.${k} (${mark})`, v, 0); inp[k] = 0; } }
+      else if (f.t === 'chk') inp[k] = !!v;
+      else if (f.t === 'sel') {
+        if (f.opts.some(([ov]) => String(ov) === String(v))) inp[k] = typeof f.def === 'number' ? Number(v) : String(v);
+        else { bad(`elements[${i}].inp.${k} (${mark})`, v, f.def); inp[k] = f.def; }
+      } else inp[k] = str(v);
+    }
+    const out = {};
+    for (const [k, v] of Object.entries(e)) if (!BAD_KEYS.has(k) && !['id', 'type', 'mark', 'level', 'qty', 'inp'].includes(k)) out[k] = clone(v);
+    st.elements.push({...out, id, type: e.type, mark, level, qty, inp});
+  });
+  st.levels = levels.length ? levels : st.levels;
+
+  // Prices & labor (units and divisions are fixed by the formulas)
+  const pin = isObj(raw.prices) ? raw.prices : {};
+  for (const k of Object.keys(pin)) if (!hasOwn(st.prices, k)) unknown('prices', k, pin[k]);
+  for (const [code, name, unit, price] of MATERIALS) {
+    const r = pin[code], t = st.prices[code];
+    if (!isObj(r)) continue;
+    if (r.name !== undefined) t.name = str(r.name);
+    if (r.price !== undefined) { if (isNum(r.price)) t.price = Number(r.price); else { bad(`prices.${code}.price`, r.price, 0); t.price = 0; } }
+    if (r.unit !== undefined && String(r.unit) !== unit) R('info', 'UNIT_FIXED', `prices.${code}: unit "${str(r.unit)}" replaced by "${unit}" (units are fixed by the formulas).`);
+    t.source = (r.source === 'sample' || r.source === 'user') ? r.source : (t.price === price && t.name === name ? 'sample' : 'user');
+    t.updatedAt = typeof r.updatedAt === 'string' ? r.updatedAt : null;
+  }
+  const lin = isObj(raw.labor) ? raw.labor : {};
+  for (const k of Object.keys(lin)) if (!hasOwn(st.labor, k)) unknown('labor', k, lin[k]);
+  for (const [code, , name, , mode, rate] of LABOR) {
+    const r = lin[code], t = st.labor[code];
+    if (!isObj(r)) continue;
+    if (r.name !== undefined) t.name = str(r.name);
+    if (r.mode !== undefined) { if (r.mode === 'unit' || r.mode === 'pct') t.mode = r.mode; else bad(`labor.${code}.mode`, r.mode, t.mode); }
+    if (r.rate !== undefined) { if (isNum(r.rate)) t.rate = Number(r.rate); else { bad(`labor.${code}.rate`, r.rate, 0); t.rate = 0; } }
+    t.source = (r.source === 'sample' || r.source === 'user') ? r.source : (t.rate === rate && t.name === name && t.mode === mode ? 'sample' : 'user');
+    t.updatedAt = typeof r.updatedAt === 'string' ? r.updatedAt : null;
+  }
+
+  // Factors: only keys that exist in the defaults; values must be finite numbers
+  (function merge(def, over, path) {
+    for (const k of Object.keys(over)) {
+      if (!hasOwn(def, k) || BAD_KEYS.has(k)) { unknown('factors', path + k, over[k]); continue; }
+      const dv = def[k], ov = over[k];
+      if (Array.isArray(dv)) { if (Array.isArray(ov) && ov.length && ov.every(x => isNum(x) && Number(x) > 0)) def[k] = ov.map(Number); else bad('factors.' + path + k, ov, dv); }
+      else if (isObj(dv)) { if (isObj(ov)) merge(dv, ov, path + k + '.'); else bad('factors.' + path + k, ov, 'defaults'); }
+      else if (isNum(ov)) def[k] = Number(ov); else bad('factors.' + path + k, ov, dv);
+    }
+  })(st.factors, isObj(raw.factors) ? raw.factors : {}, '');
+  const dF = defaultFactors();
+  for (const [p, v] of factorPaths(st.factors)) {
+    const m = isObj(raw.factorMeta) && isObj(raw.factorMeta[p]) ? raw.factorMeta[p] : null;
+    if (m) st.factorMeta[p] = {source: str(m.source, st.factorMeta[p].source), ref: str(m.ref), verified: m.verified === true, note: str(m.note)};
+    else if (JSON.stringify(v) !== JSON.stringify(getPath(dF, p))) st.factorMeta[p] = {source: 'User-entered (before provenance tracking)', ref: '', verified: false, note: ''};
+  }
+
+  if (isObj(raw.quarantine)) {
+    if (Array.isArray(raw.quarantine.elements)) Q.elements.unshift(...clone(raw.quarantine.elements));
+    if (Array.isArray(raw.quarantine.invalidValues)) Q.invalidValues.unshift(...clone(raw.quarantine.invalidValues));
+    if (isObj(raw.quarantine.unknownKeys)) for (const [g, o] of Object.entries(raw.quarantine.unknownKeys)) if (!BAD_KEYS.has(g) && isObj(o)) Q.unknownKeys[g] = {...clone(o), ...(Q.unknownKeys[g] || {})};
+  }
+  if (isObj(raw.meta)) {
+    const m = raw.meta;
+    for (const k of ['createdAt', 'updatedAt', 'fileSavedAt', 'status']) if (typeof m[k] === 'string') st.meta[k] = m[k];
+    for (const k of ['revision', 'changesSinceFile', 'migratedFrom']) if (isNum(m[k])) st.meta[k] = Number(m[k]);
+    if (Array.isArray(m.migrationReport)) st.meta.migrationReport = clone(m.migrationReport);
+  }
+  if (typeof raw.engineVersion === 'string') st.engineVersion = raw.engineVersion;
+  if (from < SCHEMA_VERSION) { st.meta.migratedFrom = from; st.meta.migrationReport = clone(report); R('info', 'MIGRATED', `Project upgraded from schema v${from} to v${SCHEMA_VERSION}. Quantities and costs are unchanged.`); }
+  return {state: st, report};
+}
+const loadState = raw => migrate(raw).state;
+
+// ---- Storage (never silent: every failure is shown in the top bar)
+const store = {ok: null, at: null, error: null, blocked: false, corruptText: null, report: []};
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function backupKeys() {
+  const out = [];
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(BACKUP_PREFIX)) out.push(k); } } catch (e) {}
+  return out.sort().reverse();
+}
+function writeBackup(text, reason) {
+  try {
+    const k = BACKUP_PREFIX + Date.now() + '.' + reason;
+    localStorage.setItem(k, text);
+    for (const old of backupKeys().slice(MAX_BACKUPS)) if (!old.includes('.corrupt')) localStorage.removeItem(old);
+    return k;
+  } catch (e) { return null; }
+}
+let S;
+(function boot() {
+  let text = null, raw = null;
+  try { text = localStorage.getItem(KEY); } catch (e) { store.ok = false; store.error = 'Browser storage is not available: ' + e.message; }
+  if (text) {
+    try { raw = JSON.parse(text); }
+    catch (e) {
+      const k = writeBackup(text, 'corrupt');
+      store.corruptText = text;
+      if (!k) store.blocked = true;   // could not keep a copy: do not overwrite the original
+      store.report.push({level: 'critical', code: 'CORRUPT_STORAGE', message: k
+        ? 'The project saved in this browser could not be read. The unreadable data was kept as a backup (Project → Local backups); an empty project was started.'
+        : 'The project saved in this browser could not be read and no backup could be made. Autosave is paused so the original is not overwritten. Download the raw data from Project → Local backups.'});
+    }
+  }
+  const {state, report} = migrate(raw);
+  if (raw && !(isNum(raw.version) && Number(raw.version) >= SCHEMA_VERSION) && lsGet(PRE_V2_KEY) === null) {
+    try { localStorage.setItem(PRE_V2_KEY, text); } catch (e) { report.push({level: 'warn', code: 'BACKUP_FAILED', message: 'Could not keep a copy of the pre-upgrade (v1) data in this browser. Save a project file now.'}); }
+  }
+  store.report.push(...report.filter(r => r.level !== 'info' || r.code === 'MIGRATED'));
+  S = state;
+})();
+function persist({countChange = true} = {}) {
+  S.meta.updatedAt = nowIso();
+  if (countChange) S.meta.changesSinceFile = (S.meta.changesSinceFile || 0) + 1;
+  if (store.blocked) { store.ok = false; store.error = 'Autosave paused to protect unreadable saved data. Download it from Project → Local backups, then resume.'; renderStatus(); return false; }
+  try { localStorage.setItem(KEY, JSON.stringify(S)); store.ok = true; store.at = S.meta.updatedAt; store.error = null; }
+  catch (e) { store.ok = false; store.error = `Not saved in this browser (${e.name || 'Error'}: ${e.message}). Use “Save file” now to keep your work.`; }
+  renderStatus();
+  return store.ok;
+}
+
+// ---- Derived numbers for the dashboard (all from buildBOQ / buildEstimate)
+function dashData() {
+  const b = buildBOQ(S), divKey = Object.fromEntries(DIVS.map(([k, n]) => [n, k]));
+  const divs = Object.fromEntries(DIVS.map(([k, n]) => [k, {key: k, name: n, amt: 0, mat: 0, lab: 0, items: 0}]));
+  const lvl = new Map();
+  let curDiv = null, curLvl = null;
+  for (const r of b.rows) {
+    if (r.kind === 'div') curDiv = divKey[r.text];
+    else if (r.kind === 'lvl') curLvl = r.text;
+    else if (r.kind === 'sub') { const d = divs[curDiv]; d.mat += r.mat; d.lab += r.lab; d.amt += r.amt; lvl.set(curLvl, (lvl.get(curLvl) || 0) + r.amt); }
+    else divs[curDiv].items++;
+  }
+  let rebarKg = 0, rebarNetKg = 0, rebarPcs = 0, purchasedM = 0, netM = 0, conc = 0, form = 0, chb = 0, ceil = 0, part = 0, missingRebar = [];
+  for (const {level, divs: dv} of b.est) for (const [k, d] of Object.entries(dv)) {
+    for (const o of d.rebar) { rebarKg += o.kg; rebarNetKg += o.netKg; rebarPcs += o.bars; purchasedM += o.purchased; netM += o.net; }
+    for (const dia of d.bars.keys()) if (!d.rebar.some(o => o.dia === dia)) missingRebar.push(`${dia} mm (${level.name}, ${DIV_NAME[k]})`);
+    conc += d.labor.get('L_CONC') || 0; form += d.labor.get('L_FORM') || 0; chb += d.labor.get('L_CHB') || 0; ceil += d.labor.get('L_CEIL') || 0; part += d.labor.get('L_PART') || 0;
+  }
+  return {b, divs: DIVS.map(([k]) => divs[k]).filter(d => d.items), perLevel: [...lvl], rebarKg, rebarNetKg, rebarPcs, purchasedM, netM, conc, form, chb, ceil, part, missingRebar};
+}
+
+// Deterministic checks shown in "Needs attention" (the full rule engine is Phase 2)
+function attention(dd) {
+  const out = [], A = (sev, title, detail, act, actLabel) => out.push({sev, title, detail, act, actLabel});
+  if (store.ok === false) A('critical', 'Changes are not being saved in this browser', store.error, 'saveFile', 'Save file');
+  for (const r of store.report.filter(r => r.level === 'critical')) A('critical', 'Saved data could not be read', r.message, 'tab:project', 'Backups');
+  if (dd.missingRebar.length) A('critical', 'Rebar missing from the BOQ', `No commercial length is longer than the lap for: ${dd.missingRebar.join(', ')}. Use a longer bar length or check the lap factor.`, 'tab:project', 'Settings');
+  if (S.quarantine.elements.length) A('warning', `${S.quarantine.elements.length} element(s) kept in quarantine`, 'Unknown or invalid elements from a loaded file are kept but not costed.', 'tab:project', 'Review');
+  const warns = store.report.filter(r => r.level === 'warn');
+  if (warns.length) A('warning', `${warns.length} issue(s) found when loading the project`, warns.slice(0, 2).map(r => r.message).join(' '), 'tab:project', 'Details');
+  const used = new Set(dd.b.rows.filter(r => r.kind === 'mat').map(r => r.code));
+  const sample = [...used].filter(c => S.prices[c].source === 'sample');
+  if (sample.length) A('warning', `${sample.length} of ${used.size} priced materials use sample prices`, 'Enter your supplier prices before using the totals.', 'tab:prices', 'Prices');
+  const usedLab = new Set(dd.b.rows.filter(r => r.kind === 'lab').map(r => r.code));
+  const sampleLab = [...usedLab].filter(c => S.labor[c].source === 'sample');
+  if (sampleLab.length) A('warning', `${sampleLab.length} labor rate(s) are sample values`, 'Enter your own labor rates.', 'tab:prices', 'Labor');
+  const fm = Object.values(S.factorMeta), unv = fm.filter(m => !m.verified).length;
+  if (unv) A('warning', `${unv} of ${fm.length} estimating factors are not verified`, `Concrete, mortar and plaster factors are designated as ${SRC_FAJARDO}; record the table/page and tick Verified.`, 'tab:factors', 'Factors');
+  const empty = S.elements.filter(e => { const r = computeElement(e, S.factors); return !r.lines.length && !r.bars.length; });
+  if (empty.length) A('warning', `${empty.length} element(s) produce no quantities`, 'Check dimensions of ' + empty.slice(0, 6).map(e => e.mark).join(', ') + '.', 'tab:elements', 'Elements');
+  const zero = S.elements.filter(e => !(Number(e.qty) > 0));
+  if (zero.length) A('warning', `${zero.length} element(s) have quantity 0`, zero.slice(0, 6).map(e => e.mark).join(', ') + ' are not costed.', 'tab:elements', 'Elements');
+  if ((S.meta.changesSinceFile || 0) > 0) A('info', `${S.meta.changesSinceFile} change(s) not yet saved to a project file`, S.meta.fileSavedAt ? `Last file save ${new Date(S.meta.fileSavedAt).toLocaleString('en-PH')}.` : 'This project has never been saved to a file.', 'saveFile', 'Save file');
   return out;
 }
-function loadState(raw) {
-  const d = defaultState();
-  if (!raw || typeof raw !== 'object') return d;
-  const st = deepMerge(d, raw);
-  st.elements = (Array.isArray(raw.elements) ? raw.elements : []).filter(e => e && TYPES[e.type]);
-  st.levels = Array.isArray(raw.levels) && raw.levels.length ? raw.levels : d.levels;
-  return st;
-}
 
-let S;
-try { S = loadState(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch (e) { S = defaultState(); }
-const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+// ---- Icons (inline SVG, stroke = currentColor)
+const IC = {
+  dash: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  bars: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  boq: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5"/>',
+  tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01"/>',
+  sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  peso: '<path d="M7 20V4h6a4 4 0 0 1 0 8H7M4 8h16M4 11h16"/>',
+  rebar: '<path d="M4 20 20 4M8 20 20 8M4 16 16 4"/>',
+  cube: '<path d="M21 16V8l-9-5-9 5v8l9 5zM3.3 7 12 12l8.7-5M12 22V12"/>',
+  layers: '<path d="m12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
+  wall: '<path d="M3 5h18v14H3zM3 12h18M9 5v7M15 12v7"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+};
+const icon = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+const typeDiv = t => TYPES[t].div || 'REBAR';
 
-const TABS = [['project', 'Project'], ['elements', 'Elements'], ['rebar', 'Rebar schedule'], ['boq', 'BOQ & Cost'], ['prices', 'Prices'], ['factors', 'Factors']];
-let cur = 'elements', levelFilter = 'all', draft = null;
-try { cur = localStorage.getItem(KEY + '.tab') || cur; } catch (e) {}
+// ---- Navigation
+const TABS = [['dashboard', 'Dashboard', 'dash'], ['elements', 'Elements', 'list'], ['rebar', 'Rebar schedule', 'bars'], ['boq', 'BOQ & Cost', 'boq'],
+  ['prices', 'Prices', 'tag'], ['factors', 'Factors', 'sliders'], ['project', 'Project & data', 'folder'], ['selftest', 'Self-test', 'check']];
+const VALID_TABS = new Set(TABS.map(t => t[0]));
+let cur = 'dashboard', levelFilter = 'all', typeFilter = 'all', draft = null, focusDiv = null;
+{ const t = lsGet(TAB_KEY); if (VALID_TABS.has(t)) cur = t; }
 if (location.hash === '#selftest') cur = 'selftest';
 
 const App = {
-  tab(t) { cur = t; try { localStorage.setItem(KEY + '.tab', t); } catch (e) {} render(); },
-  set(path, val) {
-    const ks = path.split('.'); let o = S;
-    while (ks.length > 1) o = o[ks.shift()];
-    o[ks[0]] = val; persist();
+  tab(t) {
+    if (!VALID_TABS.has(t)) t = 'dashboard';
+    const navFocused = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#nav'));
+    cur = t; try { localStorage.setItem(TAB_KEY, t); } catch (e) {}
+    document.body.classList.remove('nav-open'); render(); window.scrollTo(0, 0);
+    if (navFocused) { const b = document.querySelector('#nav button[aria-current="page"]'); if (b) b.focus(); }   // keep keyboard position
   },
   newProject() {
-    if (!confirm('Start a new project? Unsaved changes in this browser will be replaced. (Save a project file first if needed.)')) return;
-    S = defaultState(); persist(); render();
+    if (!confirm(`Start a new project?\n\nThe current project “${S.project.name}” (${S.elements.length} elements) will be kept as a local backup (Project & data → Local backups).`)) return;
+    if (!writeBackup(JSON.stringify(S), 'before-new') && !confirm('A backup could not be stored in this browser. Continue anyway? (Use “Save file” first to keep a copy.)')) return;
+    S = defaultState(); store.report = []; persist({countChange: false}); render();
   },
   saveFile() {
+    S.meta.fileSavedAt = nowIso(); S.meta.changesSinceFile = 0;
     const blob = new Blob([JSON.stringify(S, null, 1)], {type: 'application/json'});
-    download(blob, (S.project.name || 'project').replace(/[^\w\- ]+/g, '').trim() + '.estimate.json');
+    download(blob, fileBase() + '.estimate.json');
+    persist({countChange: false}); render();
   },
   openFile() { document.getElementById('fileIn').click(); },
   addLevel() { S.levels.push({id: uid(), name: 'Level ' + (S.levels.length + 1), h: 3.0}); persist(); render(); },
   delLevel(id) {
     const n = S.elements.filter(e => e.level === id).length;
     if (S.levels.length === 1) return alert('A project needs at least one level.');
-    if (n && !confirm(`Delete this level and its ${n} element(s)?`)) return;
+    if (!confirm(n ? `Delete this level and its ${n} element(s)?` : 'Delete this level?')) return;
     S.levels = S.levels.filter(l => l.id !== id); S.elements = S.elements.filter(e => e.level !== id); persist(); render();
   },
-  moveLevel(id, d) { const i = S.levels.findIndex(l => l.id === id), j = i + d; if (j < 0 || j >= S.levels.length) return; [S.levels[i], S.levels[j]] = [S.levels[j], S.levels[i]]; persist(); render(); },
-  filter(v) { levelFilter = v; render(); },
+  moveLevel(id, d) { const i = S.levels.findIndex(l => l.id === id), j = i + d; if (i < 0 || j < 0 || j >= S.levels.length) return; [S.levels[i], S.levels[j]] = [S.levels[j], S.levels[i]]; persist(); render(); },
   addEl(type) {
-    const lv = levelFilter !== 'all' ? levelFilter : S.levels[0].id;
+    if (!hasOwn(TYPES, type)) return;
+    const lv = levelFilter !== 'all' && S.levels.some(l => l.id === levelFilter) ? levelFilter : S.levels[0].id;
     const n = S.elements.filter(e => e.type === type).length + 1;
     openEditor({id: null, type, mark: TYPES[type].prefix + n, level: lv, qty: 1, inp: normInputs(type, {})});
   },
-  editEl(id) { const e = S.elements.find(x => x.id === id); if (e) openEditor(JSON.parse(JSON.stringify(e))); },
-  copyEl(id) {
-    const e = S.elements.find(x => x.id === id); if (!e) return;
-    const c = JSON.parse(JSON.stringify(e)); c.id = null; c.mark = e.mark + '-copy'; openEditor(c);
-  },
+  editEl(id) { const e = S.elements.find(x => x.id === id); if (e) openEditor(clone(e)); },
+  copyEl(id) { const e = S.elements.find(x => x.id === id); if (!e) return; const c = clone(e); c.id = null; c.mark = e.mark + '-copy'; openEditor(c); },
   delEl(id) { const e = S.elements.find(x => x.id === id); if (e && confirm(`Delete ${e.mark}?`)) { S.elements = S.elements.filter(x => x.id !== id); persist(); render(); } },
   resetPrices() { if (confirm('Reset all material and labor prices to the sample defaults?')) { const d = defaultState(); S.prices = d.prices; S.labor = d.labor; persist(); render(); } },
-  resetFactors() { if (confirm('Reset all factors to defaults?')) { S.factors = defaultFactors(); persist(); render(); } },
+  resetFactors() { if (confirm('Reset all factors and their provenance to defaults?')) { S.factors = defaultFactors(); S.factorMeta = defaultFactorMeta(); persist(); render(); } },
   exportXls() { download(new Blob([boqHtmlTable(true)], {type: 'application/vnd.ms-excel'}), fileBase() + ' BOQ.xls'); },
   exportCsv() { download(new Blob(['﻿' + boqCsv()], {type: 'text/csv'}), fileBase() + ' BOQ.csv'); },
-  print() { window.print(); },
+  print() { if (cur !== 'boq') App.tab('boq'); setTimeout(() => window.print(), 50); },
+  toggleTheme() { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(THEME_KEY, t); } catch (e) {} renderStatus(); },
+  restoreBackup(k) {
+    const text = lsGet(k); if (text === null) return alert('That backup no longer exists.');
+    let raw; try { raw = JSON.parse(text); } catch (e) { return alert('This backup is not readable JSON. Use Download to keep the raw data.'); }
+    const {state, report} = migrate(raw);
+    if (!confirm(`Restore “${state.project.name}” (${state.elements.length} elements) from this backup?\n\nThe current project is backed up first.`)) return;
+    writeBackup(JSON.stringify(S), 'before-restore');
+    S = state; store.report = report.filter(r => r.level !== 'info' || r.code === 'MIGRATED'); persist({countChange: false}); render();
+  },
+  downloadBackup(k) { const text = k === '__corrupt' ? store.corruptText : lsGet(k); if (text !== null) download(new Blob([text], {type: 'application/json'}), k.replace(/[^\w.-]+/g, '_') + '.json'); },
+  deleteBackup(k) { if (confirm('Delete this backup permanently?')) { try { localStorage.removeItem(k); } catch (e) {} render(); } },
+  resumeAutosave() { if (confirm('Resume autosave? The unreadable saved data will be overwritten. Download it first if you need it.')) { store.blocked = false; persist({countChange: false}); render(); } },
+  dismissReport() { store.report = store.report.filter(r => r.level === 'critical'); render(); },
+  openNav() { document.body.classList.add('nav-open'); },
+  closeNav() { document.body.classList.remove('nav-open'); },
+  goDiv(k) { focusDiv = k; App.tab('boq'); },
 };
 window.App = App;
-const fileBase = () => (S.project.name || 'project').replace(/[^\w\- ]+/g, '').trim();
+const fileBase = () => (S.project.name || 'project').replace(/[^\w\- ]+/g, '').trim() || 'project';
 function download(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
@@ -819,78 +1220,245 @@ function download(blob, name) {
 document.getElementById('fileIn').addEventListener('change', ev => {
   const f = ev.target.files[0]; if (!f) return;
   const r = new FileReader();
-  r.onload = () => { try { S = loadState(JSON.parse(r.result)); persist(); render(); } catch (e) { alert('Could not open file: ' + e.message); } };
+  r.onload = () => {
+    let raw;
+    try { raw = JSON.parse(r.result); } catch (e) { alert('Could not open file: it is not valid JSON (' + e.message + ').'); return; }
+    const {state, report} = migrate(raw);
+    if (!confirm(`Replace the current project “${S.project.name}” (${S.elements.length} elements) with “${state.project.name}” (${state.elements.length} elements)?\n\nThe current project is kept as a local backup.`)) return;
+    if (!writeBackup(JSON.stringify(S), 'before-open') && !confirm('A backup of the current project could not be stored. Replace it anyway?')) return;
+    S = state; S.meta.fileSavedAt = nowIso(); S.meta.changesSinceFile = 0;
+    store.report = report.filter(x => x.level !== 'info' || x.code === 'MIGRATED');
+    persist({countChange: false}); render();
+  };
   r.readAsText(f); ev.target.value = '';
 });
 
-// ---- Rendering
-function render() {
-  document.getElementById('projName').textContent = S.project.name + (S.project.location ? ' · ' + S.project.location : '');
-  document.getElementById('tabs').innerHTML = TABS.map(([k, n]) => `<button class="${k === cur ? 'on' : ''}" onclick="App.tab('${k}')">${n}</button>`).join('');
-  const v = document.getElementById('view');
-  const fn = {project: vProject, elements: vElements, rebar: vRebar, boq: vBOQ, prices: vPrices, factors: vFactors, selftest: vSelfTest}[cur] || vElements;
-  v.innerHTML = fn();
-}
-const inp = (path, val, type = 'text', extra = '') =>
-  `<input type="${type}" value="${esc(val)}" ${type === 'number' ? 'step="any"' : ''} ${extra} onchange="App.set('${path}', this.type==='number'?Number(this.value):this.value);render()">`;
-const field = (label, html, unit = '') => `<label class="f">${esc(label)}${unit ? ` <span class="u">(${esc(unit)})</span>` : ''}${html}</label>`;
+// ---- Event delegation (no inline handlers; ids never reach executable strings)
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('[data-act]'); if (!t) return;
+  const act = t.dataset.act, arg = t.dataset.arg;
+  if (act.startsWith('tab:')) return App.tab(act.slice(4));
+  const ACT = {
+    ...App,
+    addElBtn: () => App.addEl(arg), edit: () => App.editEl(arg), copy: () => App.copyEl(arg), del: () => App.delEl(arg),
+    lvUp: () => App.moveLevel(arg, -1), lvDown: () => App.moveLevel(arg, 1), lvDel: () => App.delLevel(arg),
+    bkRestore: () => App.restoreBackup(arg), bkDownload: () => App.downloadBackup(arg), bkDelete: () => App.deleteBackup(arg),
+    goDiv: () => App.goDiv(arg), closeEditor, saveEditor,
+  };
+  if (typeof ACT[act] === 'function') { ev.preventDefault(); act in App ? App[act](arg) : ACT[act](); }
+});
+// data-bind="<kind>:<key>[:<field>]" writes typed values into known places only
+document.addEventListener('change', ev => {
+  const t = ev.target.closest('[data-bind]'); if (!t) return;
+  const [kind, key, field] = t.dataset.bind.split(':');
+  const num = () => { const v = Number(t.value); return Number.isFinite(v) ? v : 0; };
+  const today = localDate();
+  if (kind === 'project' && hasOwn(S.project, key)) S.project[key] = t.value;
+  else if (kind === 'setting' && hasOwn(S.settings, key)) S.settings[key] = key === 'stock' ? t.value : num();
+  else if (kind === 'level') { const l = S.levels.find(x => x.id === key); if (!l) return; if (field === 'name') l.name = t.value; else if (field === 'h') l.h = num(); }
+  else if (kind === 'price' && hasOwn(S.prices, key)) { const p = S.prices[key]; if (field === 'name') p.name = t.value; else if (field === 'price') p.price = num(); p.source = 'user'; p.updatedAt = today; }
+  else if (kind === 'labor' && hasOwn(S.labor, key)) { const l = S.labor[key]; if (field === 'name') l.name = t.value; else if (field === 'mode') l.mode = t.value === 'pct' ? 'pct' : 'unit'; else if (field === 'rate') l.rate = num(); l.source = 'user'; l.updatedAt = today; }
+  else if (kind === 'factor' && hasOwn(S.factorMeta, key)) {
+    const ks = key.split('.'), last = ks.pop(), o = ks.reduce((a, k) => a[k], S.factors), m = S.factorMeta[key];
+    if (field === 'value') {
+      if (Array.isArray(o[last])) { const arr = t.value.split(/[ ,;]+/).map(Number).filter(x => x > 0).sort((a, b) => a - b); o[last] = arr.length ? arr : [6]; }
+      else o[last] = num();
+      m.verified = false; m.note = (m.note ? m.note + ' ' : '') + `Value changed by user on ${today}.`;
+    } else if (field === 'ref') m.ref = t.value;
+    else if (field === 'verified') m.verified = t.checked;
+  } else return;
+  persist(); render();
+});
 
+// ---- Rendering
+const field = (label, html, unit = '') => `<label class="f">${esc(label)}${unit ? ` <span class="u">(${esc(unit)})</span>` : ''}${html}</label>`;
+const inputB = (bind, val, type = 'text', extra = '') => `<input type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(val)}" data-bind="${esc(bind)}" ${extra}>`;
+
+function renderStatus() {
+  const nameEl = document.getElementById('projName');
+  if (!nameEl) return;
+  nameEl.textContent = S.project.name || 'Untitled project';
+  document.getElementById('projSub').textContent = [S.project.location, S.project.owner, S.project.date].filter(Boolean).join(' · ');
+  const n = S.meta.changesSinceFile || 0;
+  document.getElementById('revChip').innerHTML = `<span class="chip" title="Revision control (snapshots, review, approval) is added in Phase 5. This is the working draft.">Rev ${esc(S.meta.revision)} · ${esc(S.meta.status === 'draft' ? 'Working draft' : S.meta.status)}</span>`;
+  let html;
+  if (store.ok === false) html = `<span class="chip bad" title="${esc(store.error)}"><span class="dot"></span>Not saved</span>`;
+  else if (store.at) html = `<span class="chip good" title="Autosaved in this browser"><span class="dot"></span>Saved ${esc(clock(store.at))}</span>`;
+  else html = `<span class="chip"><span class="dot"></span>Loaded</span>`;
+  html += n ? ` <span class="chip warn" title="Changes since the last project-file save">${n} unsaved to file</span>` : (S.meta.fileSavedAt ? ` <span class="chip good">File saved</span>` : '');
+  document.getElementById('saveStatus').innerHTML = html;
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.getElementById('themeBtn').innerHTML = `<span style="width:16px;height:16px;display:inline-flex">${icon(dark ? 'sun' : 'moon')}</span><span class="lbl">${dark ? 'Light' : 'Dark'}</span>`;
+}
+function render() {
+  renderStatus();
+  document.getElementById('nav').innerHTML = TABS.filter(([k]) => k !== 'selftest').map(([k, n, ic]) =>
+    `<button data-act="tab:${k}" ${k === cur ? 'aria-current="page"' : ''}>${icon(ic)}<span>${esc(n)}</span>${k === 'elements' ? `<span class="count">${S.elements.length}</span>` : ''}</button>`).join('');
+  document.getElementById('sideFoot').innerHTML = `<a href="#" data-act="tab:selftest">Self-test</a> · v${APP_VERSION} · engine ${esc(S.engineVersion)}`;
+  const fn = {dashboard: vDashboard, project: vProject, elements: vElements, rebar: vRebar, boq: vBOQ, prices: vPrices, factors: vFactors, selftest: vSelfTest}[cur] || vDashboard;
+  document.getElementById('view').innerHTML = fn();
+  if (cur === 'boq' && focusDiv) { const el = document.getElementById('div-' + focusDiv); if (el) { el.open = true; el.scrollIntoView({block: 'start'}); } focusDiv = null; }
+}
+window.addEventListener('beforeprint', () => document.querySelectorAll('details.boqdiv').forEach(d => { d.open = true; }));
+
+// ---- Dashboard
+function vDashboard() {
+  const dd = dashData(), T = dd.b.totals, att = attention(dd);
+  const kpi = (id, c, ic, lbl, val, hint, hero) => `<div class="card kpi ${hero ? 'hero' : ''}" style="--c:${c}" data-kpi="${id}"><div class="lbl"><span class="ico">${icon(ic)}</span>${esc(lbl)}</div><div class="val">${val}</div><div class="hint">${hint}</div></div>`;
+  const quick = `<div class="qa">
+      ${['column', 'beam', 'slab', 'footing', 'chbwall', 'ceiling'].map(t => `<button class="btn" data-act="addElBtn" data-arg="${t}"><span style="width:14px;height:14px;display:inline-flex">${icon('plus')}</span>${esc(TYPES[t].name.replace(/ \(.*\)/, ''))}</button>`).join('')}
+      <button class="btn" data-act="tab:elements">All element types…</button>
+      <button class="btn" data-act="exportXls">Export Excel</button>
+      <button class="btn" data-act="print">Print / PDF</button>
+      <button class="btn pri" data-act="saveFile">Save project file</button>
+    </div>`;
+  if (!S.elements.length) return `
+    <div class="stack">
+      <div class="card empty"><div class="big">${icon('layers')}</div><h2>Start your estimate</h2>
+        <p class="muted">Add elements from your structural and architectural plans. Quantities, the rebar schedule and the BOQ update as you type.</p>
+        <div class="row" style="justify-content:center;margin-top:12px"><button class="btn cta" data-act="addElBtn" data-arg="column">+ Add your first column</button><button class="btn" data-act="tab:elements">Choose another element</button><button class="btn" data-act="openFile">Open a project file</button></div></div>
+      ${att.length ? `<div class="card"><h2>Needs attention</h2>${attHtml(att)}</div>` : ''}
+    </div>`;
+  const max = Math.max(...dd.divs.map(d => d.amt), 1);
+  const chart = dd.divs.map(d => `<div class="bar-row" style="--c:var(--d-${d.key})" tabindex="0" aria-label="${esc(d.name)} ${esc(peso(d.amt))}">
+      <span class="nm">${esc(d.name.replace(' Works', ''))}</span>
+      <span class="track"><span class="fill" style="display:block;width:${(d.amt / max * 100).toFixed(2)}%"></span></span>
+      <span class="v">${esc(peso(d.amt))}<small>${(T.direct ? d.amt / T.direct * 100 : 0).toFixed(1)}%</small></span>
+      <span class="tip">Materials ${esc(peso(d.mat))} · Labor ${esc(peso(d.lab))} · ${d.items} line items</span></div>`).join('');
+  const lvMax = Math.max(...dd.perLevel.map(([, a]) => a), 1);
+  const facts = [
+    ['Largest division', (() => { const m = [...dd.divs].sort((a, b) => b.amt - a.amt)[0]; return m ? esc(m.name.replace(' Works', '')) : '–'; })(), (() => { const m = [...dd.divs].sort((a, b) => b.amt - a.amt)[0]; return m && T.direct ? `${(m.amt / T.direct * 100).toFixed(1)}% of direct cost` : ''; })()],
+    ['Materials : labor', T.direct ? `${(dd.divs.reduce((s, d) => s + d.mat, 0) / T.direct * 100).toFixed(0)} : ${(dd.divs.reduce((s, d) => s + d.lab, 0) / T.direct * 100).toFixed(0)}` : '–', 'share of direct cost'],
+    ['Rebar per m³ concrete', dd.conc > 0 && dd.rebarKg > 0 ? `${fmt(dd.rebarKg / dd.conc, 1)} kg/m³` : '–', 'purchased kg ÷ net concrete volume'],
+    ['Rebar cutting & lap allowance', dd.purchasedM > 0 ? `${fmt((dd.purchasedM - dd.netM) / dd.purchasedM * 100, 1)}%` : '–', `${fmt(dd.purchasedM - dd.netM, 1)} m of ${fmt(dd.purchasedM, 1)} m purchased`],
+    ['Formwork', dd.form > 0 ? `${fmt(dd.form)} m²` : '–', dd.conc > 0 ? `${fmt(dd.form / dd.conc, 2)} m² per m³ concrete` : ''],
+    ['Masonry & partitions', `${fmt(dd.chb)} m² CHB`, `${fmt(dd.part)} m² board partitions`],
+    ['Ceiling area', `${fmt(dd.ceil)} m²`, `${S.elements.filter(e => e.type === 'ceiling').length} ceiling element(s)`],
+    ['Elements', `${S.elements.length}`, `${S.elements.filter(e => TYPES[e.type].cat === 'Structural').length} structural · ${S.elements.filter(e => TYPES[e.type].cat === 'Architectural').length} architectural · ${S.levels.length} level(s)`],
+  ];
+  return `<div class="stack">
+    <div class="g-kpi">
+      ${kpi('grand', 'var(--orange)', 'peso', 'Total project cost', esc(peso(T.grand)), `incl. markups and ${esc(S.settings.vat)}% VAT`, true)}
+      ${kpi('direct', 'var(--accent)', 'boq', 'Direct cost', esc(peso(T.direct)), 'materials + labor')}
+      ${kpi('rebar', 'var(--d-REBAR)', 'rebar', 'Rebar to buy', `${esc(fmt(dd.rebarKg))} kg`, `${dd.rebarPcs} commercial bars · ${esc(fmt(dd.rebarNetKg))} kg net`)}
+      ${kpi('concrete', 'var(--d-CONC)', 'cube', 'Concrete', `${esc(fmt(dd.conc, 2))} m³`, 'net volume, all levels')}
+      ${kpi('masonry', 'var(--d-MAS)', 'wall', 'CHB walls', `${esc(fmt(dd.chb))} m²`, 'net of openings')}
+    </div>
+    <div class="g-2">
+      <div class="card"><div class="row between"><h2 style="margin:0">Cost breakdown by division</h2><span class="muted" style="font-size:12px">Direct cost ${esc(peso(T.direct))}</span></div>
+        <div class="bars" style="margin-top:14px">${chart}</div>
+        ${dd.perLevel.length > 1 ? `<h3>By level</h3><div class="bars">${dd.perLevel.map(([n, a]) => `<div class="bar-row" style="--c:var(--accent)"><span class="nm">${esc(n)}</span><span class="track"><span class="fill" style="display:block;width:${(a / lvMax * 100).toFixed(2)}%"></span></span><span class="v">${esc(peso(a))}<small>${(T.direct ? a / T.direct * 100 : 0).toFixed(1)}%</small></span></div>`).join('')}</div>` : ''}
+      </div>
+      <div class="card"><div class="row between"><h2 style="margin:0">Needs attention</h2><span class="pill ${att.some(a => a.sev === 'critical') ? 'bad' : att.length ? 'warn' : 'good'}">${att.length ? att.length + ' item' + (att.length > 1 ? 's' : '') : 'All clear'}</span></div>
+        <div style="margin-top:12px">${att.length ? attHtml(att) : '<p class="muted">No issues found by the Phase 1 checks.</p>'}</div></div>
+    </div>
+    <div><h2 style="font-size:15px;margin:4px 0 10px">BOQ divisions</h2><div class="g-div">
+      ${dd.divs.map(d => `<button class="card divcard" style="--c:var(--d-${d.key})" data-act="goDiv" data-arg="${d.key}">
+        <div class="name"><span class="sw"></span>${esc(d.name)}</div>
+        <div class="amt">${esc(peso(d.amt))}</div>
+        <div class="meta">${(T.direct ? d.amt / T.direct * 100 : 0).toFixed(1)}% of direct cost · ${d.items} line items</div>
+        <div class="split" aria-hidden="true"><span style="width:${d.amt ? d.mat / d.amt * 100 : 0}%;background:var(--c)"></span><span style="flex:1;background:color-mix(in srgb,var(--c) 35%,transparent)"></span></div>
+        <div class="meta">Materials ${esc(peso(d.mat))} · Labor ${esc(peso(d.lab))}</div></button>`).join('')}
+    </div></div>
+    <div class="g-2">
+      <div class="card"><h2>Project intelligence</h2><div class="facts">${facts.map(([k, v, s]) => `<div class="fact"><div class="k">${esc(k)}</div><div class="v">${v}</div><div class="s">${esc(s)}</div></div>`).join('')}</div>
+        <p class="muted" style="font-size:12px;margin:10px 0 0">All figures are computed from this project's elements. No benchmarks are assumed.</p></div>
+      <div class="card"><h2>Quick actions</h2>${quick}</div>
+    </div>
+  </div>`;
+}
+function attHtml(att) {
+  const label = {critical: '✕ Critical', warning: '▲ Warning', info: '● Info'};
+  return `<div class="att">${att.map(a => `<div class="att-item"><span class="sev ${a.sev}">${label[a.sev]}</span><div><div>${esc(a.title)}</div><div class="d">${esc(a.detail)}</div></div>${a.act ? `<button class="btn sm" data-act="${esc(a.act)}">${esc(a.actLabel)}</button>` : ''}</div>`).join('')}</div>`;
+}
+
+// ---- Project & data
 function vProject() {
   const p = S.project, s = S.settings;
   const stockOpts = [['auto', 'Auto – least waste of ' + S.factors.rebar.commercial.join(' / ') + ' m'], ...S.factors.rebar.commercial.map(c => [String(c), c + ' m only'])];
-  return `
-  <section class="card"><h2>Project information</h2>
+  const bks = backupKeys();
+  const rep = store.report;
+  const Qn = S.quarantine;
+  return `<div class="stack">
+  ${rep.length ? `<div class="card"><div class="row between"><h2 style="margin:0">Load report</h2><button class="btn sm" data-act="dismissReport">Dismiss</button></div>
+    <div class="tbl-wrap" style="margin-top:10px"><table><tr><th>Level</th><th>Code</th><th>Message</th></tr>${rep.map(r => `<tr><td><span class="pill ${r.level === 'critical' || r.level === 'error' ? 'bad' : r.level === 'warn' ? 'warn' : ''}">${esc(r.level)}</span></td><td class="muted">${esc(r.code)}</td><td>${esc(r.message)}</td></tr>`).join('')}</table></div></div>` : ''}
+  <div class="card"><h2>Project information</h2>
     <div class="grid">
-      ${field('Project name', inp('project.name', p.name))}
-      ${field('Location', inp('project.location', p.location))}
-      ${field('Owner / client', inp('project.owner', p.owner))}
-      ${field('Date', inp('project.date', p.date, 'date'))}
+      ${field('Project name', inputB('project:name', p.name))}
+      ${field('Location', inputB('project:location', p.location))}
+      ${field('Owner / client', inputB('project:owner', p.owner))}
+      ${field('Date', inputB('project:date', p.date, 'date'))}
     </div>
-    <div style="margin-top:10px">${field('Notes', `<textarea rows="2" onchange="App.set('project.notes',this.value)">${esc(p.notes)}</textarea>`)}</div>
-  </section>
-  <section class="card"><h2>Levels / floors</h2>
+    <div style="margin-top:10px">${field('Notes', `<textarea rows="2" data-bind="project:notes">${esc(p.notes)}</textarea>`)}</div>
+  </div>
+  <div class="card"><h2>Levels / floors</h2>
     <div class="tbl-wrap"><table><tr><th>Name</th><th class="n">Floor height (m)</th><th class="n">Elements</th><th></th></tr>
-    ${S.levels.map((l, i) => `<tr>
-      <td><input value="${esc(l.name)}" onchange="S.levels[${i}].name=this.value;persist();render()"></td>
-      <td class="n"><input type="number" step="any" style="max-width:110px" value="${l.h}" onchange="S.levels[${i}].h=Number(this.value);persist()"></td>
+    ${S.levels.map(l => `<tr>
+      <td>${inputB(`level:${l.id}:name`, l.name)}</td>
+      <td class="n">${inputB(`level:${l.id}:h`, l.h, 'number', 'style="max-width:110px"')}</td>
       <td class="n">${S.elements.filter(e => e.level === l.id).length}</td>
-      <td class="row"><button class="btn sm" onclick="App.moveLevel('${l.id}',-1)">↑</button><button class="btn sm" onclick="App.moveLevel('${l.id}',1)">↓</button><button class="btn sm danger" onclick="App.delLevel('${l.id}')">Delete</button></td></tr>`).join('')}
+      <td class="row"><button class="btn sm" data-act="lvUp" data-arg="${esc(l.id)}" aria-label="Move up">↑</button><button class="btn sm" data-act="lvDown" data-arg="${esc(l.id)}" aria-label="Move down">↓</button><button class="btn sm danger" data-act="lvDel" data-arg="${esc(l.id)}">Delete</button></td></tr>`).join('')}
     </table></div>
-    <div style="margin-top:8px"><button class="btn" onclick="App.addLevel()">+ Add level</button></div>
-  </section>
-  <section class="card"><h2>Estimate settings</h2>
+    <div style="margin-top:8px"><button class="btn" data-act="addLevel">+ Add level</button></div>
+  </div>
+  <div class="card"><h2>Estimate settings</h2>
     <div class="grid">
-      ${field('Commercial bar length', `<select onchange="App.set('settings.stock',this.value);render()">${stockOpts.map(([v, n]) => `<option value="${v}" ${String(s.stock) === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`)}
-      ${field('OCM (overhead, contingencies, misc.)', inp('settings.ocm', s.ocm, 'number'), '% of direct cost')}
-      ${field('Contractor\'s profit', inp('settings.profit', s.profit, 'number'), '% of direct cost')}
-      ${field('Contingency', inp('settings.contingency', s.contingency, 'number'), '% of direct cost')}
-      ${field('VAT', inp('settings.vat', s.vat, 'number'), '%')}
+      ${field('Commercial bar length', `<select data-bind="setting:stock">${stockOpts.map(([v, n]) => `<option value="${esc(v)}" ${String(s.stock) === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`)}
+      ${field('OCM (overhead, contingencies, misc.)', inputB('setting:ocm', s.ocm, 'number'), '% of direct cost')}
+      ${field('Contractor\'s profit', inputB('setting:profit', s.profit, 'number'), '% of direct cost')}
+      ${field('Contingency', inputB('setting:contingency', s.contingency, 'number'), '% of direct cost')}
+      ${field('VAT', inputB('setting:vat', s.vat, 'number'), '%')}
     </div>
-  </section>`;
+  </div>
+  <div class="card"><h2>Local backups</h2>
+    <p class="muted" style="margin-top:0">Kept in this browser before New, Open and Restore (newest ${MAX_BACKUPS}, plus any unreadable data). These are not a substitute for saved project files.</p>
+    ${store.blocked ? `<div class="note bad">Autosave is paused to protect unreadable saved data. <button class="btn sm" data-act="bkDownload" data-arg="__corrupt">Download raw data</button> <button class="btn sm" data-act="resumeAutosave">Resume autosave</button></div>` : ''}
+    ${bks.length ? `<div class="tbl-wrap"><table><tr><th>Saved</th><th>Reason</th><th>Project</th><th></th></tr>${bks.map(k => {
+      const [ts, reason] = k.slice(BACKUP_PREFIX.length).split('.'); let name = '(unreadable)';
+      try { const j = JSON.parse(lsGet(k)); name = `${j.project && j.project.name || 'Untitled'} – ${Array.isArray(j.elements) ? j.elements.length : 0} elements`; } catch (e) {}
+      return `<tr><td>${esc(new Date(Number(ts)).toLocaleString('en-PH'))}</td><td>${esc(reason)}</td><td>${esc(name)}</td><td class="row"><button class="btn sm" data-act="bkRestore" data-arg="${esc(k)}">Restore</button><button class="btn sm" data-act="bkDownload" data-arg="${esc(k)}">Download</button><button class="btn sm danger" data-act="bkDelete" data-arg="${esc(k)}">Delete</button></td></tr>`;
+    }).join('')}</table></div>` : '<p class="muted">No backups yet.</p>'}
+  </div>
+  ${Qn.elements.length || Qn.invalidValues.length || Object.keys(Qn.unknownKeys).length ? `<div class="card"><h2>Quarantine</h2>
+    <p class="muted" style="margin-top:0">Data from loaded files that this version cannot use. It is kept in the project file unchanged and is not costed.</p>
+    ${Qn.elements.length ? `<h3>Elements (${Qn.elements.length})</h3><div class="tbl-wrap"><table><tr><th>Mark</th><th>Type</th><th>Data</th></tr>${Qn.elements.map(e => `<tr><td>${esc(e && e.mark)}</td><td>${esc(e && e.type)}</td><td class="muted" style="font-family:monospace;font-size:11px">${esc(JSON.stringify(e).slice(0, 160))}</td></tr>`).join('')}</table></div>` : ''}
+    ${Qn.invalidValues.length ? `<h3>Replaced values (${Qn.invalidValues.length})</h3><div class="tbl-wrap"><table><tr><th>Path</th><th>Original</th><th>Used instead</th></tr>${Qn.invalidValues.map(v => `<tr><td>${esc(v.path)}</td><td style="font-family:monospace;font-size:11px">${esc(v.value)}</td><td>${esc(JSON.stringify(v.usedInstead))}</td></tr>`).join('')}</table></div>` : ''}
+    ${Object.keys(Qn.unknownKeys).length ? `<h3>Unknown keys</h3><div class="tbl-wrap"><table><tr><th>Group</th><th>Keys</th></tr>${Object.entries(Qn.unknownKeys).map(([g, o]) => `<tr><td>${esc(g)}</td><td>${esc(Object.keys(o).join(', '))}</td></tr>`).join('')}</table></div>` : ''}
+  </div>` : ''}
+  </div>`;
 }
 
+// ---- Elements
 function vElements() {
   const cats = {};
   for (const [k, t] of Object.entries(TYPES)) (cats[t.cat] = cats[t.cat] || []).push([k, t]);
-  const list = S.elements.filter(e => levelFilter === 'all' || e.level === levelFilter);
+  const list = S.elements.filter(e => (levelFilter === 'all' || e.level === levelFilter) && (typeFilter === 'all' || e.type === typeFilter));
   const lvName = id => (S.levels.find(l => l.id === id) || {}).name || '?';
   const rows = list.map(e => {
-    let r; try { r = computeElement(e, S.factors); } catch (err) { r = {info: [['Error', err.message]]}; }
+    let r; try { r = computeElement(e, S.factors); } catch (err) { r = {info: [['Error', err.message]], lines: [], bars: []}; }
     const key = r.info.slice(0, 3).map(([a, b]) => `<span class="muted">${esc(a)}:</span> ${esc(b)}`).join(' · ');
-    return `<tr><td><b>${esc(e.mark)}</b></td><td>${esc(TYPES[e.type].name)}</td><td>${esc(lvName(e.level))}</td><td class="n">${e.qty}</td><td>${key}</td>
-      <td class="row"><button class="btn sm" onclick="App.editEl('${e.id}')">Edit</button><button class="btn sm" onclick="App.copyEl('${e.id}')">Copy</button><button class="btn sm danger" onclick="App.delEl('${e.id}')">Delete</button></td></tr>`;
+    const none = !r.lines.length && !r.bars.length;
+    return `<tr><td><b>${esc(e.mark)}</b></td><td><span class="tchip" style="--c:var(--d-${typeDiv(e.type)})">${esc(TYPES[e.type].name)}</span></td><td>${esc(lvName(e.level))}</td><td class="n">${esc(e.qty)}</td><td>${none ? '<span class="pill warn">No quantities – check inputs</span> ' : ''}${key}</td>
+      <td class="row"><button class="btn sm" data-act="edit" data-arg="${esc(e.id)}">Edit</button><button class="btn sm" data-act="copy" data-arg="${esc(e.id)}">Copy</button><button class="btn sm danger" data-act="del" data-arg="${esc(e.id)}">Delete</button></td></tr>`;
   }).join('');
-  return `
-  <section class="card"><h2>Add element</h2>
-    ${Object.entries(cats).map(([c, ts]) => `<h3>${c}</h3><div class="addgrp">${ts.map(([k, t]) => `<button class="btn" onclick="App.addEl('${k}')">+ ${esc(t.name)}</button>`).join('')}</div>`).join('')}
-  </section>
-  <section class="card">
-    <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Elements (${list.length})</h2>
-      <label class="row" style="gap:6px">Level <select style="width:auto" onchange="App.filter(this.value)"><option value="all">All levels</option>${S.levels.map(l => `<option value="${l.id}" ${levelFilter === l.id ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label></div>
+  return `<div class="stack">
+  <div class="card"><h2>Add element</h2>
+    ${Object.entries(cats).map(([c, ts]) => `<h3>${esc(c)}</h3><div class="addgrp">${ts.map(([k, t]) => `<button class="btn" data-act="addElBtn" data-arg="${k}"><span class="tchip" style="--c:var(--d-${typeDiv(k)})">${esc(t.name)}</span></button>`).join('')}</div>`).join('')}
+  </div>
+  <div class="card">
+    <div class="row between" style="margin-bottom:10px"><h2 style="margin:0">Elements (${list.length}${list.length !== S.elements.length ? ' of ' + S.elements.length : ''})</h2>
+      <div class="row">
+        <label class="row" style="gap:6px">Level <select id="fLevel" style="width:auto"><option value="all">All levels</option>${S.levels.map(l => `<option value="${esc(l.id)}" ${levelFilter === l.id ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label>
+        <label class="row" style="gap:6px">Type <select id="fType" style="width:auto"><option value="all">All types</option>${Object.entries(TYPES).map(([k, t]) => `<option value="${k}" ${typeFilter === k ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
+      </div></div>
     ${list.length ? `<div class="tbl-wrap"><table><tr><th>Mark</th><th>Type</th><th>Level</th><th class="n">Qty</th><th>Result (per element)</th><th></th></tr>${rows}</table></div>`
-      : `<p class="muted">No elements yet. Pick an element type above and enter its dimensions from the plans.</p>`}
-  </section>`;
+      : `<div class="empty"><div class="big">${icon('list')}</div><p class="muted">${S.elements.length ? 'No elements match the filters.' : 'No elements yet. Pick an element type above and enter its dimensions from the plans.'}</p></div>`}
+  </div></div>`;
 }
+document.addEventListener('change', ev => {
+  if (ev.target.id === 'fLevel') { levelFilter = ev.target.value; render(); }
+  if (ev.target.id === 'fType') { typeFilter = ev.target.value; render(); }
+});
 
 // ---- Element editor
 function openEditor(el) {
@@ -900,24 +1468,25 @@ function openEditor(el) {
     if (f.sec) return `<div class="secttl">${esc(f.sec)}</div>`;
     const v = el.inp[f.k], id = 'f_' + f.k;
     if (f.t === 'chk') return `<label class="chk" style="grid-column:1/-1"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
-    if (f.t === 'sel') return field(f.label, `<select id="${id}">${f.opts.map(([ov, on]) => `<option value="${ov}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(on)}</option>`).join('')}</select>`);
+    if (f.t === 'sel') return field(f.label, `<select id="${id}">${f.opts.map(([ov, on]) => `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(on)}</option>`).join('')}</select>`);
     if (f.t === 'txt') return `<div style="grid-column:1/-1">${field(f.label, `<input id="${id}" value="${esc(v)}" placeholder="${esc(f.ph || '')}">`)}</div>`;
-    return field(f.label, `<input id="${id}" type="number" step="${f.step}" value="${v}">`, f.unit);
+    return field(f.label, `<input id="${id}" type="number" step="${esc(f.step)}" value="${esc(v)}">`, f.unit);
   }).join('');
+  dlg.setAttribute('aria-labelledby', 'dlgTitle');
   dlg.innerHTML = `
-    <div class="dlg-h"><h2>${el.id ? 'Edit' : 'New'} ${esc(t.name)}</h2><button class="btn sm" onclick="closeEditor()">✕</button></div>
+    <div class="dlg-h"><h2 id="dlgTitle">${el.id ? 'Edit' : 'New'} ${esc(t.name)}</h2><button class="btn sm" data-act="closeEditor" aria-label="Close">✕</button></div>
     <div class="dlg-b">
       <div>
         <div class="grid">
           ${field('Mark', `<input id="e_mark" value="${esc(el.mark)}">`)}
-          ${field('Level', `<select id="e_level">${S.levels.map(l => `<option value="${l.id}" ${l.id === el.level ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select>`)}
-          ${field('Quantity (same elements)', `<input id="e_qty" type="number" step="1" min="0" value="${el.qty}">`, 'pcs')}
+          ${field('Level', `<select id="e_level">${S.levels.map(l => `<option value="${esc(l.id)}" ${l.id === el.level ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select>`)}
+          ${field('Quantity (same elements)', `<input id="e_qty" type="number" step="1" min="0" value="${esc(el.qty)}">`, 'pcs')}
         </div>
         <div class="grid" style="margin-top:6px">${fieldsHtml}</div>
       </div>
       <div class="preview" id="pv"></div>
     </div>
-    <div class="dlg-f"><button class="btn" onclick="closeEditor()">Cancel</button><button class="btn pri" onclick="saveEditor()">Save element</button></div>`;
+    <div class="dlg-f"><button class="btn" data-act="closeEditor">Cancel</button><button class="btn pri" data-act="saveEditor">Save element</button></div>`;
   dlg.oninput = dlg.onchange = () => { readEditor(); preview(); };
   preview();
   if (!dlg.open) dlg.showModal();
@@ -934,11 +1503,11 @@ function preview() {
   const pv = document.getElementById('pv');
   let r;
   try { r = computeElement(draft, S.factors); } catch (e) { pv.innerHTML = `<p class="err">Check inputs: ${esc(e.message)}</p>`; return; }
-  const q = draft.qty, P = S.prices;
-  const agg = new Map();
+  const q = draft.qty, P = S.prices, agg = new Map();
   for (const l of r.lines) agg.set(l.code, (agg.get(l.code) || 0) + l.qty);
   pv.innerHTML = `
     <div class="kv">${r.info.map(([a, b]) => `<span class="muted">${esc(a)}</span><b>${esc(b)}</b>`).join('')}</div>
+    ${!r.lines.length && !r.bars.length ? '<p class="note">These inputs produce no quantities. Check dimensions, spacing and cover.</p>' : ''}
     ${r.bars.length ? `<h4>Bar list (1 element)</h4><table><tr><th>Bar</th><th class="n">Ø</th><th class="n">Cut L (m)</th><th class="n">No.</th><th class="n">kg</th></tr>
       ${r.bars.map(b => `<tr><td>${esc(b.desc)}</td><td class="n">${b.dia}</td><td class="n">${fmt(b.len, 3)}</td><td class="n">${b.n}</td><td class="n">${fmt(b.len * b.n * kgpm(b.dia))}</td></tr>`).join('')}</table>` : ''}
     ${agg.size ? `<h4>Materials (× ${q} element${q === 1 ? '' : 's'}, before rounding)</h4><table>${[...agg].map(([c, v]) => `<tr><td>${esc(P[c].name)}</td><td class="n">${fmt(v * q, 3)}</td><td>${esc(P[c].unit)}</td></tr>`).join('')}</table>` : ''}
@@ -946,42 +1515,44 @@ function preview() {
 }
 function saveEditor() {
   readEditor();
-  if (draft.id) { const i = S.elements.findIndex(e => e.id === draft.id); S.elements[i] = draft; }
+  if (draft.id) { const i = S.elements.findIndex(e => e.id === draft.id); if (i >= 0) S.elements[i] = draft; }
   else { draft.id = uid(); S.elements.push(draft); }
   persist(); closeEditor(); render();
 }
 function closeEditor() { document.getElementById('dlg').close(); draft = null; }
-window.closeEditor = closeEditor; window.saveEditor = saveEditor;
 
+// ---- Rebar schedule
 function vRebar() {
-  const est = buildEstimate(S), F = S.factors;
-  const proj = new Map();
-  let html = `<section class="card"><h2>Rebar schedule</h2><p class="muted">Cut lengths include hooks and laps. Bars longer than the commercial length are spliced with a lap of ${F.rebar.lapFactor}d. Purchase quantities are optimized per level and work division.</p></section>`;
+  const est = buildEstimate(S), F = S.factors, proj = new Map();
+  let html = `<div class="card"><h2>Rebar schedule</h2><p class="muted" style="margin:0">Cut lengths include hooks and laps. Bars longer than the commercial length are spliced with a lap of ${esc(F.rebar.lapFactor)}d. Purchase quantities are optimized per level and work division.</p></div>`;
   for (const {level, divs} of est) {
-    const els = S.elements.filter(e => e.level === level.id);
-    const withBars = els.map(e => ({e, r: computeElement(e, F)})).filter(x => x.r.bars.length);
+    const withBars = S.elements.filter(e => e.level === level.id).map(e => ({e, r: computeElement(e, F)})).filter(x => x.r.bars.length);
     if (!withBars.length) continue;
-    html += `<section class="card"><h2>${esc(level.name)}</h2><div class="tbl-wrap"><table>
+    const xs = Object.values(divs).reduce((s, d) => s + d.x, 0);
+    html += `<div class="card"><h2>${esc(level.name)}</h2><div class="tbl-wrap"><table>
       <tr><th>Mark</th><th>Bar</th><th class="n">Ø mm</th><th class="n">Cut length (m)</th><th class="n">No. / element</th><th class="n">Elements</th><th class="n">Total length (m)</th><th class="n">Weight (kg)</th></tr>
-      ${withBars.map(({e, r}) => r.bars.map((b, i) => `<tr><td>${i ? '' : '<b>' + esc(e.mark) + '</b>'}</td><td>${esc(b.desc)}</td><td class="n">${b.dia}</td><td class="n">${fmt(b.len, 3)}</td><td class="n">${b.n}</td><td class="n">${e.qty}</td><td class="n">${fmt(b.len * b.n * e.qty)}</td><td class="n">${fmt(b.len * b.n * e.qty * kgpm(b.dia))}</td></tr>`).join('')).join('')}
+      ${withBars.map(({e, r}) => r.bars.map((b, i) => `<tr><td>${i ? '' : '<b>' + esc(e.mark) + '</b>'}</td><td>${esc(b.desc)}</td><td class="n">${b.dia}</td><td class="n">${fmt(b.len, 3)}</td><td class="n">${b.n}</td><td class="n">${esc(e.qty)}</td><td class="n">${fmt(b.len * b.n * e.qty)}</td><td class="n">${fmt(b.len * b.n * e.qty * kgpm(b.dia))}</td></tr>`).join('')).join('')}
       </table></div>
       <h3>Purchase list</h3><div class="tbl-wrap"><table><tr><th>Division</th><th class="n">Ø mm</th><th class="n">Net length (m)</th><th class="n">Splices</th><th class="n">Commercial length</th><th class="n">Bars to buy</th><th class="n">Weight to buy (kg)</th><th class="n">Waste incl. laps</th></tr>
-      ${Object.entries(divs).flatMap(([dk, d]) => d.rebar.map(o => {
+      ${Object.entries(divs).flatMap(([dk, d]) => [...d.bars.keys()].sort((a, b) => a - b).map(dia => {
+        const o = d.rebar.find(x => x.dia === dia);
+        if (!o) return `<tr><td>${esc(DIV_NAME[dk])}</td><td class="n">${dia}</td><td colspan="6"><span class="pill bad">✕ Not purchasable</span> No commercial length is longer than the ${fmt(lapLen(dia, F), 2)} m lap. This bar is missing from the BOQ.</td></tr>`;
         const k = o.dia + '|' + o.stock, p = proj.get(k) || {dia: o.dia, stock: o.stock, bars: 0, kg: 0}; p.bars += o.bars; p.kg += o.kg; proj.set(k, p);
-        return `<tr><td>${esc(DIV_NAME[dk])}</td><td class="n">${o.dia}</td><td class="n">${fmt(o.net)}</td><td class="n">${o.splices}</td><td class="n">${o.stock} m</td><td class="n"><b>${o.bars}</b></td><td class="n">${fmt(o.kg)}</td><td class="n">${fmt(o.wastePct, 1)}%</td></tr>`;
+        return `<tr><td><span class="tchip" style="--c:var(--d-${dk})">${esc(DIV_NAME[dk])}</span></td><td class="n">${o.dia}</td><td class="n">${fmt(o.net)}</td><td class="n">${o.splices}</td><td class="n">${o.stock} m</td><td class="n"><b>${o.bars}</b></td><td class="n">${fmt(o.kg)}</td><td class="n">${fmt(o.wastePct, 1)}%</td></tr>`;
       })).join('')}
       </table></div>
-      ${Object.values(divs).some(d => d.x) ? `<p class="muted">Tie wire #16: ${fmt(Object.values(divs).reduce((s, d) => s + d.x, 0) * F.rebar.tieWirePerX / F.rebar.tieWireMPerKg)} kg (${Object.values(divs).reduce((s, d) => s + d.x, 0)} intersections × ${F.rebar.tieWirePerX} m ÷ ${F.rebar.tieWireMPerKg} m/kg)</p>` : ''}
-    </section>`;
+      ${xs ? `<p class="muted">Tie wire #16: ${fmt(xs * F.rebar.tieWirePerX / F.rebar.tieWireMPerKg)} kg (${xs} intersections × ${esc(F.rebar.tieWirePerX)} m ÷ ${esc(F.rebar.tieWireMPerKg)} m/kg)</p>` : ''}
+    </div>`;
   }
-  if (!proj.size) return html + `<section class="card"><p class="muted">No reinforced elements yet.</p></section>`;
+  if (!proj.size) return `<div class="stack">${html}<div class="card empty"><div class="big">${icon('rebar')}</div><p class="muted">No reinforced elements yet.</p></div></div>`;
   const tot = [...proj.values()].sort((a, b) => a.dia - b.dia || a.stock - b.stock);
-  html += `<section class="card"><h2>Project total – rebar to order</h2><div class="tbl-wrap"><table><tr><th class="n">Ø mm</th><th class="n">Length</th><th class="n">Pieces</th><th class="n">Weight (kg)</th></tr>
+  html += `<div class="card"><h2>Project total – rebar to order</h2><div class="tbl-wrap"><table><tr><th class="n">Ø mm</th><th class="n">Length</th><th class="n">Pieces</th><th class="n">Weight (kg)</th></tr>
     ${tot.map(p => `<tr><td class="n">${p.dia}</td><td class="n">${p.stock} m</td><td class="n"><b>${p.bars}</b></td><td class="n">${fmt(p.kg)}</td></tr>`).join('')}
-    <tr class="tot"><td colspan="2">Total</td><td class="n">${tot.reduce((s, p) => s + p.bars, 0)}</td><td class="n">${fmt(tot.reduce((s, p) => s + p.kg, 0))}</td></tr></table></div></section>`;
-  return html;
+    <tr class="tot"><td colspan="2">Total</td><td class="n">${tot.reduce((s, p) => s + p.bars, 0)}</td><td class="n">${fmt(tot.reduce((s, p) => s + p.kg, 0))}</td></tr></table></div></div>`;
+  return `<div class="stack">${html}</div>`;
 }
 
+// ---- Exports (output format frozen by the golden master; do not change)
 function boqHtmlTable(forExcel) {
   const b = buildBOQ(S), p = S.project, num = (x, d = 2) => forExcel ? round(x, d) : fmt(x, d);
   let i = 0;
@@ -1024,71 +1595,106 @@ function boqCsv() {
     ['', 'Contingency', '', '', '', round(T.cont, 2)], ['', 'VAT', '', '', '', round(T.vat, 2)], ['', 'TOTAL PROJECT COST', '', '', '', round(T.grand, 2)]);
   return out.map(r => r.map(q).join(',')).join('\r\n');
 }
+
+// ---- BOQ view (on screen: collapsible division cards)
 function vBOQ() {
-  const T = buildBOQ(S).totals;
-  return `
-  <section class="card noprint"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Bill of Quantities & Cost</h2>
-    <div class="row"><button class="btn" onclick="App.exportXls()">Export Excel</button><button class="btn" onclick="App.exportCsv()">Export CSV</button><button class="btn pri" onclick="App.print()">Print / PDF</button></div></div>
-    <p class="muted" style="margin:8px 0 0">Total project cost: <b style="color:var(--ink);font-size:16px">${peso(T.grand)}</b> · Direct cost ${peso(T.direct)}</p>
-    <div class="note">Sample prices are placeholders. Update the <a href="#" onclick="App.tab('prices');return false">Prices</a> tab with your supplier and labor rates before using this estimate.</div>
-  </section>
-  <section class="card"><div class="tbl-wrap">${boqHtmlTable(false)}</div></section>`;
+  const b = buildBOQ(S), T = b.totals, s = S.settings, p = S.project;
+  const groups = [];
+  let g = null;
+  for (const r of b.rows) {
+    if (r.kind === 'div') { g = {key: DIVS.find(([, n]) => n === r.text)[0], name: r.text, rows: []}; groups.push(g); }
+    else g.rows.push(r);
+  }
+  const divAmt = Object.fromEntries(b.divTotals.map(d => [d.div, d.amt]));
+  const body = groups.map(gr => {
+    let i = 0;
+    const rows = gr.rows.map(r => {
+      if (r.kind === 'lvl') return `<tr class="lvl"><td colspan="6">${esc(r.text)}</td></tr>`;
+      if (r.kind === 'sub') return `<tr class="sub"><td></td><td colspan="4">${esc(r.text)} <span class="muted">(materials ${esc(peso(r.mat))} + labor ${esc(peso(r.lab))})</span></td><td class="n">${esc(fmt(r.amt))}</td></tr>`;
+      i++;
+      return `<tr><td class="n">${i}</td><td>${esc(r.name)}</td><td class="n">${r.pct ? fmt(r.qty) : fmt(r.qty, r.kind === 'mat' && CEIL_UNITS.has(r.unit) ? 0 : 2)}</td><td>${esc(r.unit)}</td><td class="n">${r.pct ? 'of ' + fmt(r.rate) : fmt(r.rate)}</td><td class="n">${fmt(r.amt)}</td></tr>`;
+    }).join('');
+    return `<details class="boqdiv" id="div-${gr.key}" style="--c:var(--d-${gr.key})" open><summary><span class="tchip" style="--c:var(--d-${gr.key})">${esc(gr.name)}</span><span class="pill">${(T.direct ? divAmt[gr.key] / T.direct * 100 : 0).toFixed(1)}%</span><span class="amt">${esc(peso(divAmt[gr.key]))}</span></summary>
+      <div class="inner tbl-wrap"><table><tr><th class="n">Item</th><th>Description</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit cost (₱)</th><th class="n">Amount (₱)</th></tr>${rows}</table></div></details>`;
+  }).join('');
+  const sum = `<div class="card"><h2>Summary</h2><div class="tbl-wrap"><table>
+    ${b.divTotals.map(d => `<tr><td><span class="tchip" style="--c:var(--d-${d.div})">${esc(d.name)}</span></td><td class="n">${esc(fmt(d.amt))}</td></tr>`).join('')}
+    <tr class="sub"><td>Total direct cost</td><td class="n">${esc(fmt(T.direct))}</td></tr>
+    <tr><td>OCM (${esc(s.ocm)}%)</td><td class="n">${esc(fmt(T.ocm))}</td></tr>
+    <tr><td>Contractor's profit (${esc(s.profit)}%)</td><td class="n">${esc(fmt(T.profit))}</td></tr>
+    <tr><td>Contingency (${esc(s.contingency)}%)</td><td class="n">${esc(fmt(T.cont))}</td></tr>
+    <tr class="sub"><td>Subtotal</td><td class="n">${esc(fmt(T.sub))}</td></tr>
+    <tr><td>VAT (${esc(s.vat)}%)</td><td class="n">${esc(fmt(T.vat))}</td></tr>
+    <tr class="tot"><td>TOTAL PROJECT COST</td><td class="n">${esc(peso(T.grand))}</td></tr></table></div></div>`;
+  return `<div class="stack">
+  <div class="card noprint"><div class="row between"><div><h2 style="margin:0">Bill of Quantities & Cost</h2><div class="muted" style="margin-top:4px">Total project cost <b style="color:var(--orange);font-size:18px">${esc(peso(T.grand))}</b> · Direct cost ${esc(peso(T.direct))}</div></div>
+    <div class="row"><button class="btn" data-act="exportXls">Export Excel</button><button class="btn" data-act="exportCsv">Export CSV</button><button class="btn pri" data-act="print">Print / PDF</button></div></div>
+    ${Object.values(S.prices).some(x => x.source === 'sample') ? `<div class="note">Some prices are sample placeholders. Update them on the <a href="#" data-act="tab:prices">Prices</a> tab before using this estimate.</div>` : ''}
+  </div>
+  <div class="print-only"><h2 style="margin:0">BILL OF QUANTITIES – ${esc(p.name)}</h2><div>${esc([p.location, p.owner, p.date].filter(Boolean).join(' · '))}</div></div>
+  ${groups.length ? body + sum : `<div class="card empty"><div class="big">${icon('boq')}</div><p class="muted">No elements yet.</p></div>`}
+  </div>`;
 }
 
+// ---- Prices
 function vPrices() {
-  const byDiv = {};
-  for (const [c, d] of LABOR) (byDiv[d] = byDiv[d] || []).push(c);
-  return `
-  <section class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Material prices</h2><button class="btn sm" onclick="App.resetPrices()">Reset to sample prices</button></div>
-    <div class="note">Seeded with sample prices only. Enter your current supplier prices.</div>
-    <div class="tbl-wrap"><table><tr><th>Code</th><th>Material</th><th>Unit</th><th class="n">Unit price (₱)</th></tr>
-    ${MATERIALS.map(([c]) => { const m = S.prices[c]; return `<tr><td class="muted">${c}</td><td><input value="${esc(m.name)}" onchange="S.prices['${c}'].name=this.value;persist()"></td><td>${esc(m.unit)}</td>
-      <td class="n"><input type="number" step="any" style="max-width:130px;text-align:right" value="${m.price}" onchange="S.prices['${c}'].price=Number(this.value);persist()"></td></tr>`; }).join('')}
-    </table></div></section>
-  <section class="card"><h2>Labor rates</h2>
-    <p class="muted">Per unit (₱ per m², kg, m³, set), or as a % of the materials cost of that division.</p>
-    <div class="tbl-wrap"><table><tr><th>Division</th><th>Labor item</th><th>Unit</th><th>Basis</th><th class="n">Rate</th></tr>
-    ${LABOR.map(([c, d]) => { const l = S.labor[c]; return `<tr><td class="muted">${esc(DIV_NAME[d])}</td><td><input value="${esc(l.name)}" onchange="S.labor['${c}'].name=this.value;persist()"></td><td>${esc(l.unit)}</td>
-      <td><select onchange="S.labor['${c}'].mode=this.value;persist();render()"><option value="unit" ${l.mode === 'unit' ? 'selected' : ''}>₱ per ${esc(l.unit)}</option><option value="pct" ${l.mode === 'pct' ? 'selected' : ''}>% of materials</option></select></td>
-      <td class="n"><input type="number" step="any" style="max-width:110px;text-align:right" value="${l.rate}" onchange="S.labor['${c}'].rate=Number(this.value);persist()"></td></tr>`; }).join('')}
-    </table></div></section>`;
+  const src = o => o.source === 'sample' ? '<span class="pill warn">Sample</span>' : `<span class="pill good">Yours${o.updatedAt ? ' · ' + esc(o.updatedAt) : ''}</span>`;
+  return `<div class="stack">
+  <div class="card"><div class="row between"><h2 style="margin:0">Material prices</h2><button class="btn sm" data-act="resetPrices">Reset to sample prices</button></div>
+    <div class="note">Sample prices are placeholders, not market data. Enter your current supplier prices; edited prices are marked “Yours”.</div>
+    <div class="tbl-wrap"><table><tr><th>Code</th><th>Material</th><th>Unit</th><th class="n">Unit price (₱)</th><th>Source</th></tr>
+    ${MATERIALS.map(([c]) => { const m = S.prices[c]; return `<tr><td class="muted">${c}</td><td>${inputB(`price:${c}:name`, m.name)}</td><td>${esc(m.unit)}</td>
+      <td class="n">${inputB(`price:${c}:price`, m.price, 'number', 'style="max-width:130px;text-align:right"')}</td><td>${src(m)}</td></tr>`; }).join('')}
+    </table></div></div>
+  <div class="card"><h2>Labor rates</h2>
+    <p class="muted" style="margin-top:0">Per unit (₱ per m², kg, m³, set), or as a % of the materials cost of that division.</p>
+    <div class="tbl-wrap"><table><tr><th>Division</th><th>Labor item</th><th>Unit</th><th>Basis</th><th class="n">Rate</th><th>Source</th></tr>
+    ${LABOR.map(([c, d]) => { const l = S.labor[c]; return `<tr><td><span class="tchip" style="--c:var(--d-${d})">${esc(DIV_NAME[d])}</span></td><td>${inputB(`labor:${c}:name`, l.name)}</td><td>${esc(l.unit)}</td>
+      <td><select data-bind="labor:${c}:mode"><option value="unit" ${l.mode === 'unit' ? 'selected' : ''}>₱ per ${esc(l.unit)}</option><option value="pct" ${l.mode === 'pct' ? 'selected' : ''}>% of materials</option></select></td>
+      <td class="n">${inputB(`labor:${c}:rate`, l.rate, 'number', 'style="max-width:110px;text-align:right"')}</td><td>${src(l)}</td></tr>`; }).join('')}
+    </table></div></div></div>`;
 }
 
+// ---- Factors (with provenance)
+const FACTOR_LABEL = {
+  'rebar.lapFactor': 'Lap splice (× d)', 'rebar.tieHookD': 'Tie hook extension, 135° (× d)', 'rebar.tieHookMin': 'Tie hook minimum (mm)', 'rebar.hook90D': '90° hook extension (× d)',
+  'rebar.commercial': 'Commercial lengths (m)', 'rebar.tieWirePerX': 'Tie wire per intersection (m)', 'rebar.tieWireMPerKg': '#16 tie wire length per kg (m/kg)', 'rebar.allowancePct': 'Extra allowance on rebar (%)',
+  'chb.perSqm': 'CHB per m²', 'chb.courseH': 'Course height (m)', 'plaster.sandPerCum': 'Sand per m³ plaster mortar (m³)',
+};
+function factorLabel(p) {
+  if (FACTOR_LABEL[p]) return FACTOR_LABEL[p];
+  let m;
+  if ((m = p.match(/^concrete\.(\w+)\.(\w+)$/))) return `Class ${m[1]} – ${m[2]} ${m[2] === 'cement' ? '(bags/m³)' : '(m³/m³)'}`;
+  if ((m = p.match(/^chb\.mortar\.(\d)\.(\w+)$/))) return `${m[1]}" CHB mortar – ${m[2] === 'sand' ? 'sand (m³/m²)' : 'class ' + m[2] + ' cement (bags/m²)'}`;
+  if ((m = p.match(/^plaster\.(\w)$/))) return `Plaster class ${m[1]} – cement (bags/m³)`;
+  if ((m = p.match(/^boards\.(\w+)\.(\w)$/))) return `${m[1]} board ${m[2] === 'w' ? 'width' : 'length'} (m)`;
+  if ((m = p.match(/^waste\.(\w+)$/))) return `Waste – ${m[1]} (%)`;
+  return p.split('.').slice(1).join(' ').replace(/([A-Z])/g, ' $1').toLowerCase();
+}
 function vFactors() {
-  const F = S.factors;
-  const numIn = (path, v) => `<input type="number" step="any" value="${v}" onchange="App.set('factors.${path}',Number(this.value))">`;
-  const group = (title, path, obj, labels = {}, note = '') => `<section class="card"><h2>${title}</h2>${note ? `<div class="note">${note}</div>` : ''}<div class="grid">
-    ${Object.entries(obj).filter(([, v]) => typeof v === 'number').map(([k, v]) => field(labels[k] || k, numIn(path + '.' + k, v))).join('')}</div></section>`;
-  const table = (title, path, obj, cols, note) => `<section class="card"><h2>${title}</h2>${note ? `<div class="note">${note}</div>` : ''}<div class="tbl-wrap"><table><tr><th></th>${cols.map(c => `<th class="n">${c[1]}</th>`).join('')}</tr>
-    ${Object.entries(obj).map(([r, o]) => `<tr><td><b>${r}</b></td>${cols.map(([c]) => `<td class="n"><input type="number" step="any" style="max-width:100px;text-align:right" value="${o[c]}" onchange="App.set('factors.${path}.${r}.${c}',Number(this.value))"></td>`).join('')}</tr>`).join('')}</table></div></section>`;
-  return `
-  <section class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Estimating factors</h2><button class="btn sm" onclick="App.resetFactors()">Reset to defaults</button></div>
-    <p class="muted">These factors are saved with this project. Changing them updates every element.</p></section>
-  <section class="card"><h2>Rebar (NSCP defaults)</h2><div class="grid">
-    ${field('Lap splice', numIn('rebar.lapFactor', F.rebar.lapFactor), '× bar diameter')}
-    ${field('Tie hook extension (135°)', numIn('rebar.tieHookD', F.rebar.tieHookD), '× bar diameter')}
-    ${field('Tie hook minimum', numIn('rebar.tieHookMin', F.rebar.tieHookMin), 'mm')}
-    ${field('90° hook extension', numIn('rebar.hook90D', F.rebar.hook90D), '× bar diameter')}
-    ${field('Tie wire per intersection', numIn('rebar.tieWirePerX', F.rebar.tieWirePerX), 'm')}
-    ${field('#16 tie wire length per kg', numIn('rebar.tieWireMPerKg', F.rebar.tieWireMPerKg), 'm/kg')}
-    ${field('Extra allowance on rebar', numIn('rebar.allowancePct', F.rebar.allowancePct), '%')}
-    ${field('Commercial lengths', `<input value="${F.rebar.commercial.join(', ')}" onchange="S.factors.rebar.commercial=this.value.split(/[ ,;]+/).map(Number).filter(x=>x>0).sort((a,b)=>a-b);if(!S.factors.rebar.commercial.length)S.factors.rebar.commercial=[6];persist();render()">`, 'm, comma separated')}
-  </div></section>
-  ${table('Concrete mix per m³ (40 kg bags)', 'concrete', F.concrete, [['cement', 'Cement (bags)'], ['sand', 'Sand (m³)'], ['gravel', 'Gravel (m³)']], 'VERIFY: common Fajardo-style proportions. Check against your references.')}
-  ${table('CHB laying mortar per m² of wall', 'chb.mortar', F.chb.mortar, [['A', 'Class A (bags)'], ['B', 'Class B (bags)'], ['C', 'Class C (bags)'], ['sand', 'Sand (m³)']], 'VERIFY: 4" and 6" are common PH table values; 5" is interpolated.')}
-  ${group('CHB', 'chb', F.chb, {perSqm: 'Blocks per m²', courseH: 'Course height (m)'})}
-  ${group('Plaster mortar per m³', 'plaster', F.plaster, {A: 'Class A (bags/m³)', B: 'Class B (bags/m³)', C: 'Class C (bags/m³)', D: 'Class D (bags/m³)', sandPerCum: 'Sand (m³ per m³)'}, 'VERIFY: plaster cement = area × thickness × bags/m³.')}
-  ${table('Board sizes (m)', 'boards', F.boards, [['w', 'Width'], ['l', 'Length']])}
-  ${group('Ceiling', 'ceiling', F.ceiling, {ccSpacing: 'Carrying channel spacing (m)', stockLen: 'Channel / furring length (m)', wallAngleLen: 'Wall angle length (m)', hangerSpacing: 'Hanger spacing along channel (m)', hangerLen: 'Hanger length each (m)', screwsPerBoard: 'Screws per board', tapePerSqm: 'Joint tape (m/m²)', compoundPerSqm: 'Joint compound (kg/m²)', rivetsPerFurring: 'Rivets per furring row', acousticMainLen: 'Main runner length (m)', acousticMainSp: 'Main runner spacing (m)', acousticTile: 'Acoustic tile size (m)', acousticWallAngle: 'Acoustic wall angle length (m)', pvcWidth: 'PVC panel width (m)', pvcLength: 'PVC panel length (m)', pvcMoldingLen: 'PVC molding length (m)', pvcScrewsPerSqm: 'PVC screws per m²', woodFrameSp: 'Wood frame spacing (m)', bdftPerM: '2"x2" lumber (bd.ft per m)', nailsKgPerSqm: 'Nails (kg/m²)'})}
-  ${group('Partition', 'partition', F.partition, {studLen: 'Stud length (m)', trackLen: 'Track length (m)', screwsPerBoard: 'Screws per board', tapePerSqm: 'Joint tape (m/m²)', compoundPerSqm: 'Joint compound (kg/m²)', anchorSp: 'Track anchor spacing (m)'})}
-  ${group('Waste allowances (%)', 'waste', F.waste, {concrete: 'Concrete materials', chb: 'CHB (default)', board: 'Boards (default)', metal: 'Studs, tracks, channels, furring'})}`;
+  const groups = [['rebar', 'Rebar'], ['concrete', 'Concrete mix per m³ (40 kg bags)'], ['chb', 'CHB and laying mortar per m² of wall'], ['plaster', 'Plaster mortar'], ['boards', 'Board sizes'], ['ceiling', 'Ceiling'], ['partition', 'Partition'], ['waste', 'Waste allowances']];
+  const all = factorPaths(S.factors), fm = S.factorMeta, nv = Object.values(fm).filter(m => m.verified).length;
+  return `<div class="stack">
+  <div class="card"><div class="row between"><h2 style="margin:0">Estimating factors</h2><button class="btn sm" data-act="resetFactors">Reset to defaults</button></div>
+    <p class="muted">These factors are saved with this project; changing one updates every element. <b>${nv} of ${all.length}</b> are verified.</p>
+    <div class="note">Concrete, mortar and plaster factors are designated as <b>${esc(SRC_FAJARDO)}</b>. The values have not been checked against the book. Enter the table and page you checked, then tick <b>Verified</b>. The 5" CHB mortar row is interpolated and has no cited source.</div></div>
+  ${groups.map(([g, title]) => `<div class="card"><h2>${esc(title)}</h2><div class="tbl-wrap"><table>
+    <tr><th>Factor</th><th class="n">Value</th><th>Source</th><th>Table / page checked</th><th>Verified</th></tr>
+    ${all.filter(([p]) => p.split('.')[0] === g).map(([p, v]) => { const m = fm[p] || {source: '', ref: '', verified: false, note: ''}; return `<tr>
+      <td>${esc(factorLabel(p))}</td>
+      <td class="n">${Array.isArray(v) ? inputB(`factor:${p}:value`, v.join(', '), 'text', 'style="max-width:160px"') : inputB(`factor:${p}:value`, v, 'number', 'style="max-width:110px;text-align:right"')}</td>
+      <td style="max-width:320px">${esc(m.source)}${m.note ? `<div class="muted" style="font-size:11.5px">${esc(m.note)}</div>` : ''}</td>
+      <td>${inputB(`factor:${p}:ref`, m.ref, 'text', 'placeholder="e.g. Table 2-3, p. 41"')}</td>
+      <td><label class="chk"><input type="checkbox" data-bind="factor:${esc(p)}:verified" ${m.verified ? 'checked' : ''}> <span class="pill ${m.verified ? 'good' : /interpolated/i.test(m.source) ? 'bad' : 'warn'}">${m.verified ? 'Verified' : /interpolated/i.test(m.source) ? 'Interpolated' : 'Unverified'}</span></label></td></tr>`; }).join('')}
+  </table></div></div>`).join('')}
+  </div>`;
 }
 
 function vSelfTest() {
   const res = runSelfTests(), ok = res.filter(r => r.ok).length;
-  return `<section class="card" id="selftest"><h2>Self-test: <span class="${ok === res.length ? 'pass' : 'fail'}" id="selftest-summary">${ok}/${res.length} passed</span></h2>
-    <p class="muted">Worked examples calculated by hand and checked against the engine.</p>
-    <table>${res.map(r => `<tr><td class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</td><td>${esc(r.name)}${r.fails.map(f => `<div class="err">${esc(f)}</div>`).join('')}</td></tr>`).join('')}</table></section>`;
+  return `<div class="card" id="selftest"><h2>Self-test: <span class="${ok === res.length ? 'pass' : 'fail'}" id="selftest-summary">${ok}/${res.length} passed</span></h2>
+    <p class="muted">Worked examples calculated by hand and checked against the engine (engine ${esc(ENGINE_VERSION)}).</p>
+    <table>${res.map(r => `<tr><td class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'}</td><td>${esc(r.name)}${r.fails.map(f => `<div class="err">${esc(f)}</div>`).join('')}</td></tr>`).join('')}</table></div>`;
 }
 
 render();

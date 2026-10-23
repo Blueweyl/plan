@@ -1,8 +1,7 @@
 {
  "meta": {
   "description": "Golden-master baseline for estimator.html (engine v1) using the 18-element sample project. Regenerate only after an intended, reviewed formula change.",
-  "appFile": "estimator.html",
-  "appSha256": "24263786b79199eef24a7f0f494320c424c6ece59348c4c0f1559c4f385f085c",
+  "recordedFrom": "original/estimator.v1.html (engine and exports)",
   "originalCopy": "original/estimator.v1.html",
   "originalSha256": "24263786b79199eef24a7f0f494320c424c6ece59348c4c0f1559c4f385f085c",
   "fixture": "tests/fixtures/sample-18.estimate.json",
@@ -1559,8 +1558,15 @@
    "level": "lvl-ground",
    "divisions": {
     "REBAR": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "RB10": 544.4444444444445,
+      "RB12": 93.33333333333333,
+      "RB16": 1365.3333333333333,
+      "TW": 27.056603773584907
+     },
+     "labor": {
+      "L_RB": 1863.2716543209876
+     },
      "intersections": 4780,
      "rebarPurchase": [
       {
@@ -1599,20 +1605,39 @@
      ]
     },
     "CONC": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "CEM": 213.79432744459072,
+      "SAND": 11.877462635810597,
+      "GRAV": 23.754925271621193
+     },
+     "labor": {
+      "L_CONC": 22.623738353924946
+     },
      "intersections": 0,
      "rebarPurchase": []
     },
     "FORM": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "FORM": 137.53115294937453
+     },
+     "labor": {
+      "L_FORM": 137.53115294937453
+     },
      "intersections": 0,
      "rebarPurchase": []
     },
     "MAS": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "CHB6": 1056.0375000000001,
+      "CEM": 112.80492000000001,
+      "SAND": 9.365544,
+      "RB10": 207.4074074074074,
+      "TW": 1.4433962264150944
+     },
+     "labor": {
+      "L_PLAS": 160.92000000000002,
+      "L_CHB": 80.46000000000001
+     },
      "intersections": 255,
      "rebarPurchase": [
       {
@@ -1629,8 +1654,27 @@
      ]
     },
     "PART": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "CHB4": 406.35,
+      "CEM": 28.04976,
+      "SAND": 2.3374800000000002,
+      "STUD": 18.900000000000002,
+      "TRK": 4.2,
+      "ANC": 22,
+      "GYP12": 11.513034130610054,
+      "CSCR": 360,
+      "JT": 39.168,
+      "JC": 16.32,
+      "CUB": 2,
+      "RB10": 84.25925925925925,
+      "TW": 0.5943396226415094
+     },
+     "labor": {
+      "L_PLAS": 61.92,
+      "L_CHB": 30.96,
+      "L_PART": 16.32,
+      "L_CUB": 2
+     },
      "intersections": 105,
      "rebarPurchase": [
       {
@@ -1647,8 +1691,26 @@
      ]
     },
     "CEIL": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "GYP9": 14.109110454178985,
+      "CC": 10.5,
+      "MF": 23.52,
+      "WA": 12.600000000000001,
+      "HANG": 48.093523246439126,
+      "WCL": 140,
+      "CSCR": 480,
+      "RIV": 56,
+      "JT": 48,
+      "JC": 20,
+      "MR": 7.054555227089492,
+      "CT4": 42.32733136253695,
+      "CT2": 42.32733136253695,
+      "ACT": 87.50000000000001,
+      "AWA": 7.573770491803279
+     },
+     "labor": {
+      "L_CEIL": 70
+     },
      "intersections": 0,
      "rebarPurchase": []
     }
@@ -1658,8 +1720,14 @@
    "level": "lvl-second",
    "divisions": {
     "REBAR": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "RB10": 1354.6296296296296,
+      "RB16": 758.5185185185185,
+      "TW": 27.033962264150944
+     },
+     "labor": {
+      "L_RB": 1995.7916049382711
+     },
      "intersections": 4776,
      "rebarPurchase": [
       {
@@ -1687,20 +1755,46 @@
      ]
     },
     "CONC": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "CEM": 201.096,
+      "SAND": 11.172,
+      "GRAV": 22.344
+     },
+     "labor": {
+      "L_CONC": 21.28
+     },
      "intersections": 0,
      "rebarPurchase": []
     },
     "FORM": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "FORM": 195.4
+     },
+     "labor": {
+      "L_FORM": 195.4
+     },
      "intersections": 0,
      "rebarPurchase": []
     },
     "CEIL": {
-     "materials": {},
-     "labor": {},
+     "materials": {
+      "PVC": 8.823529411764705,
+      "MF": 10.71,
+      "PVCM": 6.300000000000001,
+      "CSCR": 240,
+      "PLY6": 4.232733136253696,
+      "LUM": 55.137600000000006,
+      "NAIL": 1.2000000000000002,
+      "FC6": 3.1745498521902715,
+      "CC": 2.52,
+      "WA": 4.2,
+      "HANG": 9.6,
+      "WCL": 36,
+      "RIV": 18
+     },
+     "labor": {
+      "L_CEIL": 31
+     },
      "intersections": 0,
      "rebarPurchase": []
     }

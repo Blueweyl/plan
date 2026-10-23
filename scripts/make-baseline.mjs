@@ -4,8 +4,10 @@
 // Usage: node scripts/make-baseline.mjs [--check]   (--check compares instead of writing)
 import fs from 'node:fs';
 import path from 'node:path';
-import {ROOT, APP_HTML, loadEngine, readJSON, plain, sha256} from '../tests/lib/engine.mjs';
-import {launch, openApp} from '../tests/lib/browser.mjs';
+import {ROOT, APP_HTML, ORIGINAL_HTML, loadEngine, readJSON, plain, sha256} from '../tests/lib/engine.mjs';
+import {launch, openApp, APP_URL} from '../tests/lib/browser.mjs';
+
+export const ORIGINAL_URL = 'file://' + ORIGINAL_HTML;
 
 export const FIXTURE = 'tests/fixtures/sample-18.estimate.json';
 export const BASELINE = 'BASELINE_RESULTS.json';
@@ -30,10 +32,10 @@ export function engineResults(E, st) {
   return {elements, estimate, boq: {rows: boq.rows, divTotals: boq.divTotals, totals: boq.totals}, reconciliation, selfTest: plain(E.runSelfTests())};
 }
 
-export async function exportResults(st) {
+export async function exportResults(st, url = APP_URL) {
   const browser = await launch();
   try {
-    const app = await openApp(browser, {state: st});
+    const app = await openApp(browser, {state: st, url});
     const out = await app.page.evaluate(() => ({csv: boqCsv(), xls: boqHtmlTable(true), boqTotals: buildBOQ(S).totals, elementCount: S.elements.length}));
     if (app.errors.length) throw new Error('Page errors: ' + app.errors.join('; '));
     await app.close();
@@ -41,15 +43,17 @@ export async function exportResults(st) {
   } finally { await browser.close(); }
 }
 
+// The baseline is always recorded from the untouched original (engine v1), so
+// later app changes cannot move the reference they are tested against.
 export async function buildBaseline() {
-  const E = loadEngine(), st = readJSON(FIXTURE);
+  const E = loadEngine(ORIGINAL_HTML), st = readJSON(FIXTURE);
   const res = engineResults(E, st);
-  const exp = await exportResults(st);
+  const exp = await exportResults(st, ORIGINAL_URL);
   const types = [...new Set(st.elements.map(e => e.type))];
   return {
     meta: {
       description: 'Golden-master baseline for estimator.html (engine v1) using the 18-element sample project. Regenerate only after an intended, reviewed formula change.',
-      appFile: 'estimator.html', appSha256: sha256(fs.readFileSync(APP_HTML)),
+      recordedFrom: 'original/estimator.v1.html (engine and exports)',
       originalCopy: 'original/estimator.v1.html', originalSha256: sha256(fs.readFileSync(path.join(ROOT, 'original/estimator.v1.html'))),
       fixture: FIXTURE, fixtureSha256: sha256(fs.readFileSync(path.join(ROOT, FIXTURE))),
       elementCount: st.elements.length, elementTypesCovered: types, allEngineTypes: Object.keys(E.TYPES),

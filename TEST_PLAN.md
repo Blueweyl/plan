@@ -4,7 +4,7 @@
 Requirements: Node 22+ and Playwright with Chromium. In the cloud environment both are preinstalled; locally, run `npm i -g playwright && npx playwright install chromium`.
 
 ```
-npm test                         # every suite (56 tests at Phase 0)
+npm test                         # every suite (78 tests after Phase 1)
 npm run test:engine              # golden master only, no browser needed
 node scripts/make-baseline.mjs --check   # compare engine + exports to BASELINE_RESULTS.json
 node tests/selftest.mjs [dir]    # UI smoke test + screenshots
@@ -16,10 +16,11 @@ node tests/selftest.mjs [dir]    # UI smoke test + screenshots
 
 | File | Kind | What it proves | Count |
 |---|---|---|---|
-| `tests/golden.test.mjs` | Regression (Node) | Each of the 18 sample elements (bars, cut lengths, counts, materials, labor, intersections, kg), the per-level rebar purchase optimization, every BOQ row, division totals, markups, VAT and grand total all match `BASELINE_RESULTS.json`. Also checks reconciliation and that the self-test passes. | 28 |
+| `tests/golden.test.mjs` | Regression (Node, baseline recorded from `original/estimator.v1.html`) | Each of the 18 sample elements (bars, cut lengths, counts, materials, labor, intersections, kg), the per-level rebar purchase optimization, every BOQ row, division totals, markups, VAT and grand total all match `BASELINE_RESULTS.json`. Also checks reconciliation and that the self-test passes. | 25 |
 | `tests/exports.test.mjs` | Regression (browser) | CSV text and XLS HTML are byte-identical to the baseline (sha256). The CSV grand total equals the engine total. Every tab renders the sample project with no page errors. | 3 |
-| `tests/migration.test.mjs` | Compatibility (browser) | COMPAT-01…07: saved files and legacy shapes load correctly. KNOWN-ISSUE tests reproduce data loss. | 11 |
-| `tests/audit-probes.test.mjs` | Issue reproductions | One test per audit finding ID. Each passes **while the issue exists**. | 17 |
+| `tests/migration.test.mjs` | Compatibility (browser) | COMPAT-01…07: v1 files keep loading with identical results. MIG-01…08: the v2 migration guarantees (quarantine, orphan recovery, corrupt-storage backup, XSS/prototype keys, forward compatibility with v1, pre-v2 backup). | 18 |
+| `tests/phase1.test.mjs` | Dashboard & safety (browser) | KPIs and division cards equal engine totals; every ₱ on the dashboard is a computed value; every nav item and control is wired; save failures visible; Open confirms with backup; 18-vector XSS corpus; local date; light/dark; no horizontal scroll at 375/768/1280 px; keyboard nav; empty state; revision/save chips; coefficient verification. | 21 |
+| `tests/audit-probes.test.mjs` | Issue reproductions | One test per **open** audit finding. Each passes while the issue exists. | 11 |
 | `estimator.html` → Self-test | Hand calculations | 8 worked examples: column, footing, laps/commercial lengths, CHB wall, gypsum ceiling, drywall, openings parser, bar weight. | 8 |
 
 **Tolerance:** numbers must match to `|a − b| ≤ 1e-9 · max(1, |b|)`; strings must match exactly. Engine results in Node and in Chromium are compared with each other as well.

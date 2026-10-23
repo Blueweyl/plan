@@ -28,5 +28,8 @@ export function loadEngine(file = APP_HTML) {
 
 export const sha256 = data => crypto.createHash('sha256').update(data).digest('hex');
 export const readJSON = p => JSON.parse(fs.readFileSync(path.resolve(ROOT, p), 'utf8'));
-// VM objects come from another realm; round-trip through JSON to get plain data.
-export const plain = x => JSON.parse(JSON.stringify(x, (k, v) => v instanceof Map ? Object.fromEntries(v) : v));
+// VM objects come from another realm, so `instanceof Map` is false for them;
+// detect Maps by tag, then round-trip through JSON to get plain data.
+const isMap = v => Object.prototype.toString.call(v) === '[object Map]';
+export const plain = x => JSON.parse(JSON.stringify(x, (k, v) => isMap(v) ? Object.fromEntries(v) : v));
+export const ORIGINAL_HTML = path.join(ROOT, 'original', 'estimator.v1.html');
