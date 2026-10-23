@@ -1,0 +1,12 @@
+{
+  "name": "construction-estimator",
+  "private": true,
+  "type": "module",
+  "description": "Single-file structural & architectural estimator (PH). Tests need Node 22+ and Playwright with Chromium.",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
+    "test:engine": "node --test tests/golden.test.mjs",
+    "fixture": "node scripts/make-fixture.mjs",
+    "baseline": "node scripts/make-baseline.mjs"
+  }
+}

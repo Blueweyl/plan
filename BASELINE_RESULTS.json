@@ -1,0 +1,2627 @@
+{
+ "meta": {
+  "description": "Golden-master baseline for estimator.html (engine v1) using the 18-element sample project. Regenerate only after an intended, reviewed formula change.",
+  "appFile": "estimator.html",
+  "appSha256": "24263786b79199eef24a7f0f494320c424c6ece59348c4c0f1559c4f385f085c",
+  "originalCopy": "original/estimator.v1.html",
+  "originalSha256": "24263786b79199eef24a7f0f494320c424c6ece59348c4c0f1559c4f385f085c",
+  "fixture": "tests/fixtures/sample-18.estimate.json",
+  "fixtureSha256": "97aa750ec651d431721a648c9e3ac0ce63d94c0fc4472671f8f2023fef1f2d96",
+  "elementCount": 18,
+  "elementTypesCovered": [
+   "footing",
+   "wallfooting",
+   "column",
+   "beam",
+   "stairs",
+   "chbwall",
+   "chbpart",
+   "drywall",
+   "cubicle",
+   "ceiling",
+   "slab",
+   "rcwall"
+  ],
+  "allEngineTypes": [
+   "footing",
+   "wallfooting",
+   "column",
+   "beam",
+   "slab",
+   "rcwall",
+   "stairs",
+   "chbwall",
+   "chbpart",
+   "drywall",
+   "cubicle",
+   "ceiling"
+  ],
+  "comparisonTolerance": "numbers: |a-b| <= 1e-9 * max(1,|b|); strings exact"
+ },
+ "elements": [
+  {
+   "id": "el-01",
+   "mark": "F1",
+   "type": "footing",
+   "level": "lvl-ground",
+   "qty": 9,
+   "inputs": {
+    "L": 1.5,
+    "W": 1.5,
+    "T": 0.4,
+    "cover": 75,
+    "dL": 16,
+    "sL": 150,
+    "dW": 16,
+    "sW": 150,
+    "hook": true,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 16,
+     "len": 1.734,
+     "n": 10,
+     "desc": "Bottom bars along L",
+     "div": "REBAR"
+    },
+    {
+     "dia": 16,
+     "len": 1.734,
+     "n": 10,
+     "desc": "Bottom bars along W",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 8.505
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 0.47250000000000003
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 0.9450000000000001
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 2.4000000000000004
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 0.9
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 2.4000000000000004
+    }
+   ],
+   "intersections": 100,
+   "rebarKgNet": 54.80296296296296,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "54.80 kg"
+    ],
+    [
+     "Concrete",
+     "0.900 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "2.40 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-02",
+   "mark": "WF1",
+   "type": "wallfooting",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inputs": {
+    "L": 30,
+    "B": 0.6,
+    "T": 0.25,
+    "cover": 75,
+    "dT": 12,
+    "sT": 200,
+    "hook": false,
+    "dLn": 10,
+    "nLn": 4,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 12,
+     "len": 0.45,
+     "n": 150,
+     "desc": "Transverse bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 29.85,
+     "n": 4,
+     "desc": "Longitudinal bars",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 42.525000000000006
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 2.3625000000000003
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 4.7250000000000005
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 15
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 4.5
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 15
+    }
+   ],
+   "intersections": 600,
+   "rebarKgNet": 133.7037037037037,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "133.70 kg"
+    ],
+    [
+     "Concrete",
+     "4.500 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "15.00 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-03",
+   "mark": "C1",
+   "type": "column",
+   "level": "lvl-ground",
+   "qty": 9,
+   "inputs": {
+    "b": 0.4,
+    "h": 0.4,
+    "H": 3,
+    "cover": 40,
+    "nM": 8,
+    "dM": 16,
+    "lapTop": true,
+    "botAnch": 0,
+    "dT": 10,
+    "sT": 150,
+    "Lo": 0.5,
+    "sLo": 100,
+    "ct": 0,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 16,
+     "len": 3.64,
+     "n": 8,
+     "desc": "Main bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 1.43,
+     "n": 25,
+     "desc": "Ties",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 4.536000000000001
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 0.25200000000000006
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 0.5040000000000001
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 4.800000000000001
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 0.4800000000000001
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 4.800000000000001
+    }
+   ],
+   "intersections": 200,
+   "rebarKgNet": 68.08469135802468,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "68.08 kg"
+    ],
+    [
+     "Concrete",
+     "0.480 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "4.80 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-04",
+   "mark": "B1",
+   "type": "beam",
+   "level": "lvl-ground",
+   "qty": 12,
+   "inputs": {
+    "b": 0.25,
+    "h": 0.4,
+    "L": 4,
+    "cover": 40,
+    "nTop": 2,
+    "dTop": 16,
+    "nBot": 2,
+    "dBot": 16,
+    "anch": 0.3,
+    "nXT": 0,
+    "dXT": 16,
+    "lXT": 1.5,
+    "nXB": 0,
+    "dXB": 16,
+    "lXB": 3,
+    "dS": 10,
+    "sS": 150,
+    "Lo": 0,
+    "sLo": 100,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 16,
+     "len": 4.6,
+     "n": 2,
+     "desc": "Top bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 16,
+     "len": 4.6,
+     "n": 2,
+     "desc": "Bottom bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 1.13,
+     "n": 28,
+     "desc": "Stirrups",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 3.7800000000000002
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 0.21000000000000002
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 0.42000000000000004
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 4.2
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 0.4
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 4.2
+    }
+   ],
+   "intersections": 112,
+   "rebarKgNet": 48.6074074074074,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "48.61 kg"
+    ],
+    [
+     "Concrete",
+     "0.400 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "4.20 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-05",
+   "mark": "ST1",
+   "type": "stairs",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inputs": {
+    "W": 1.2,
+    "run": 3,
+    "rise": 1.5,
+    "N": 9,
+    "t": 0.15,
+    "cover": 20,
+    "dM": 12,
+    "sM": 150,
+    "anch": 0.3,
+    "dD": 10,
+    "sD": 200,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 12,
+     "len": 3.954,
+     "n": 8,
+     "desc": "Main bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 1.16,
+     "n": 17,
+     "desc": "Distribution bars",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 8.540327444590712
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 0.47446263581059517
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 0.9489252716211903
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 7.331152949374527
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 0.9037383539249432
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 7.331152949374527
+    }
+   ],
+   "intersections": 136,
+   "rebarKgNet": 40.29017283950617,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "40.29 kg"
+    ],
+    [
+     "Concrete",
+     "0.904 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "7.33 m²"
+    ],
+    [
+     "Inclined length",
+     "3.354 m"
+    ]
+   ]
+  },
+  {
+   "id": "el-06",
+   "mark": "CHB1",
+   "type": "chbwall",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inputs": {
+    "L": 30,
+    "H": 3,
+    "open": "0.9x2.1x2, 1.2x1.2x4",
+    "size": "6",
+    "mcls": "B",
+    "waste": 5,
+    "faces": 2,
+    "plt": 16,
+    "pcls": "B",
+    "dV": 10,
+    "sV": 0.6,
+    "vX": 0.4,
+    "dH": 10,
+    "cH": 3
+   },
+   "bars": [
+    {
+     "dia": 10,
+     "len": 3.4,
+     "n": 51,
+     "desc": "Vertical bars",
+     "div": "MAS"
+    },
+    {
+     "dia": 10,
+     "len": 30,
+     "n": 5,
+     "desc": "Horizontal bars",
+     "div": "MAS"
+    }
+   ],
+   "lines": [
+    {
+     "div": "MAS",
+     "code": "CHB6",
+     "qty": 1056.0375000000001
+    },
+    {
+     "div": "MAS",
+     "code": "CEM",
+     "qty": 81.90828
+    },
+    {
+     "div": "MAS",
+     "code": "SAND",
+     "qty": 6.790824000000001
+    },
+    {
+     "div": "MAS",
+     "code": "CEM",
+     "qty": 30.89664
+    },
+    {
+     "div": "MAS",
+     "code": "SAND",
+     "qty": 2.57472
+    }
+   ],
+   "labor": [
+    {
+     "div": "MAS",
+     "code": "L_PLAS",
+     "qty": 160.92000000000002
+    },
+    {
+     "div": "MAS",
+     "code": "L_CHB",
+     "qty": 80.46000000000001
+    }
+   ],
+   "intersections": 255,
+   "rebarKgNet": 199.62962962962962,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "199.63 kg"
+    ],
+    [
+     "Net wall area",
+     "80.46 m²"
+    ],
+    [
+     "Plaster area",
+     "160.92 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-07",
+   "mark": "P1",
+   "type": "chbpart",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inputs": {
+    "L": 12,
+    "H": 3,
+    "open": "0.8x2.1x3",
+    "size": "4",
+    "mcls": "B",
+    "waste": 5,
+    "faces": 2,
+    "plt": 16,
+    "pcls": "B",
+    "dV": 10,
+    "sV": 0.6,
+    "vX": 0.4,
+    "dH": 10,
+    "cH": 3
+   },
+   "bars": [
+    {
+     "dia": 10,
+     "len": 3.4,
+     "n": 21,
+     "desc": "Vertical bars",
+     "div": "PART"
+    },
+    {
+     "dia": 10,
+     "len": 12,
+     "n": 5,
+     "desc": "Horizontal bars",
+     "div": "PART"
+    }
+   ],
+   "lines": [
+    {
+     "div": "PART",
+     "code": "CHB4",
+     "qty": 406.35
+    },
+    {
+     "div": "PART",
+     "code": "CEM",
+     "qty": 16.16112
+    },
+    {
+     "div": "PART",
+     "code": "SAND",
+     "qty": 1.34676
+    },
+    {
+     "div": "PART",
+     "code": "CEM",
+     "qty": 11.88864
+    },
+    {
+     "div": "PART",
+     "code": "SAND",
+     "qty": 0.99072
+    }
+   ],
+   "labor": [
+    {
+     "div": "PART",
+     "code": "L_PLAS",
+     "qty": 61.92
+    },
+    {
+     "div": "PART",
+     "code": "L_CHB",
+     "qty": 30.96
+    }
+   ],
+   "intersections": 105,
+   "rebarKgNet": 81.11111111111111,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "81.11 kg"
+    ],
+    [
+     "Net wall area",
+     "30.96 m²"
+    ],
+    [
+     "Plaster area",
+     "61.92 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-08",
+   "mark": "DW1",
+   "type": "drywall",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inputs": {
+    "L": 6,
+    "H": 3,
+    "open": "0.8x2.1x1",
+    "board": "GYP12",
+    "faces": 2,
+    "sp": 0.406,
+    "ins": false,
+    "waste": 5
+   },
+   "bars": [],
+   "lines": [
+    {
+     "div": "PART",
+     "code": "STUD",
+     "qty": 18.900000000000002
+    },
+    {
+     "div": "PART",
+     "code": "TRK",
+     "qty": 4.2
+    },
+    {
+     "div": "PART",
+     "code": "ANC",
+     "qty": 22
+    },
+    {
+     "div": "PART",
+     "code": "GYP12",
+     "qty": 11.513034130610054
+    },
+    {
+     "div": "PART",
+     "code": "CSCR",
+     "qty": 360
+    },
+    {
+     "div": "PART",
+     "code": "JT",
+     "qty": 39.168
+    },
+    {
+     "div": "PART",
+     "code": "JC",
+     "qty": 16.32
+    }
+   ],
+   "labor": [
+    {
+     "div": "PART",
+     "code": "L_PART",
+     "qty": 16.32
+    }
+   ],
+   "intersections": 0,
+   "rebarKgNet": 0,
+   "info": [
+    [
+     "Net wall area",
+     "16.32 m²"
+    ],
+    [
+     "Board area",
+     "32.64 m²"
+    ],
+    [
+     "Stud runs",
+     18
+    ]
+   ]
+  },
+  {
+   "id": "el-09",
+   "mark": "TC1",
+   "type": "cubicle",
+   "level": "lvl-ground",
+   "qty": 2,
+   "inputs": {
+    "desc": "Phenolic toilet cubicle, standard",
+    "sets": 1
+   },
+   "bars": [],
+   "lines": [
+    {
+     "div": "PART",
+     "code": "CUB",
+     "qty": 1
+    }
+   ],
+   "labor": [
+    {
+     "div": "PART",
+     "code": "L_CUB",
+     "qty": 1
+    }
+   ],
+   "intersections": 0,
+   "rebarKgNet": 0,
+   "info": [
+    [
+     "Cubicle sets",
+     1
+    ]
+   ]
+  },
+  {
+   "id": "el-10",
+   "mark": "CL1",
+   "type": "ceiling",
+   "level": "lvl-ground",
+   "qty": 2,
+   "inputs": {
+    "L": 5,
+    "W": 4,
+    "sys": "gyp",
+    "board": "GYP9",
+    "fsp": 0.4,
+    "waste": 5
+   },
+   "bars": [],
+   "lines": [
+    {
+     "div": "CEIL",
+     "code": "GYP9",
+     "qty": 7.054555227089493
+    },
+    {
+     "div": "CEIL",
+     "code": "CC",
+     "qty": 5.25
+    },
+    {
+     "div": "CEIL",
+     "code": "MF",
+     "qty": 11.76
+    },
+    {
+     "div": "CEIL",
+     "code": "WA",
+     "qty": 6.300000000000001
+    },
+    {
+     "div": "CEIL",
+     "code": "HANG",
+     "qty": 18
+    },
+    {
+     "div": "CEIL",
+     "code": "WCL",
+     "qty": 70
+    },
+    {
+     "div": "CEIL",
+     "code": "CSCR",
+     "qty": 240
+    },
+    {
+     "div": "CEIL",
+     "code": "RIV",
+     "qty": 28
+    },
+    {
+     "div": "CEIL",
+     "code": "JT",
+     "qty": 24
+    },
+    {
+     "div": "CEIL",
+     "code": "JC",
+     "qty": 10
+    }
+   ],
+   "labor": [
+    {
+     "div": "CEIL",
+     "code": "L_CEIL",
+     "qty": 20
+    }
+   ],
+   "intersections": 0,
+   "rebarKgNet": 0,
+   "info": [
+    [
+     "Ceiling area",
+     "20.00 m²"
+    ],
+    [
+     "Perimeter",
+     "18.00 m"
+    ],
+    [
+     "Carrying channel rows",
+     5
+    ],
+    [
+     "Furring rows",
+     14
+    ],
+    [
+     "Hanger points",
+     30
+    ]
+   ]
+  },
+  {
+   "id": "el-11",
+   "mark": "CL2",
+   "type": "ceiling",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inputs": {
+    "L": 6,
+    "W": 5,
+    "sys": "acoustic",
+    "board": "GYP9",
+    "fsp": 0.4,
+    "waste": 5
+   },
+   "bars": [],
+   "lines": [
+    {
+     "div": "CEIL",
+     "code": "MR",
+     "qty": 7.054555227089492
+    },
+    {
+     "div": "CEIL",
+     "code": "CT4",
+     "qty": 42.32733136253695
+    },
+    {
+     "div": "CEIL",
+     "code": "CT2",
+     "qty": 42.32733136253695
+    },
+    {
+     "div": "CEIL",
+     "code": "ACT",
+     "qty": 87.50000000000001
+    },
+    {
+     "div": "CEIL",
+     "code": "AWA",
+     "qty": 7.573770491803279
+    },
+    {
+     "div": "CEIL",
+     "code": "HANG",
+     "qty": 12.093523246439128
+    }
+   ],
+   "labor": [
+    {
+     "div": "CEIL",
+     "code": "L_CEIL",
+     "qty": 30
+    }
+   ],
+   "intersections": 0,
+   "rebarKgNet": 0,
+   "info": [
+    [
+     "Ceiling area",
+     "30.00 m²"
+    ],
+    [
+     "Perimeter",
+     "22.00 m"
+    ]
+   ]
+  },
+  {
+   "id": "el-12",
+   "mark": "C2",
+   "type": "column",
+   "level": "lvl-second",
+   "qty": 9,
+   "inputs": {
+    "b": 0.3,
+    "h": 0.3,
+    "H": 3,
+    "cover": 40,
+    "nM": 4,
+    "dM": 16,
+    "lapTop": true,
+    "botAnch": 0,
+    "dT": 10,
+    "sT": 200,
+    "Lo": 0,
+    "sLo": 100,
+    "ct": 0,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 16,
+     "len": 3.64,
+     "n": 4,
+     "desc": "Main bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 1.03,
+     "n": 16,
+     "desc": "Ties",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 2.5515000000000003
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 0.14175000000000001
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 0.28350000000000003
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 3.5999999999999996
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 0.27
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 3.5999999999999996
+    }
+   ],
+   "intersections": 64,
+   "rebarKgNet": 33.18123456790123,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "33.18 kg"
+    ],
+    [
+     "Concrete",
+     "0.270 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "3.60 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-13",
+   "mark": "B2",
+   "type": "beam",
+   "level": "lvl-second",
+   "qty": 10,
+   "inputs": {
+    "b": 0.3,
+    "h": 0.5,
+    "L": 5,
+    "cover": 40,
+    "nTop": 2,
+    "dTop": 16,
+    "nBot": 3,
+    "dBot": 16,
+    "anch": 0.3,
+    "nXT": 2,
+    "dXT": 16,
+    "lXT": 1.5,
+    "nXB": 0,
+    "dXB": 16,
+    "lXB": 3,
+    "dS": 10,
+    "sS": 150,
+    "Lo": 0,
+    "sLo": 100,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 16,
+     "len": 5.6,
+     "n": 2,
+     "desc": "Top bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 16,
+     "len": 5.6,
+     "n": 3,
+     "desc": "Bottom bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 16,
+     "len": 1.5,
+     "n": 2,
+     "desc": "Extra top bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 1.43,
+     "n": 35,
+     "desc": "Stirrups",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 7.0875
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 0.39375000000000004
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 0.7875000000000001
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 6.5
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 0.75
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 6.5
+    }
+   ],
+   "intersections": 175,
+   "rebarKgNet": 79.88271604938271,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "79.88 kg"
+    ],
+    [
+     "Concrete",
+     "0.750 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "6.50 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-14",
+   "mark": "S1",
+   "type": "slab",
+   "level": "lvl-second",
+   "qty": 4,
+   "inputs": {
+    "Lx": 4,
+    "Ly": 5,
+    "t": 0.125,
+    "cover": 20,
+    "anch": 0.1,
+    "dB": 10,
+    "sBx": 200,
+    "sBy": 200,
+    "top": "supports",
+    "dT": 10,
+    "sT": 200,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 10,
+     "len": 4.16,
+     "n": 25,
+     "desc": "Bottom bars along Lx",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 5.16,
+     "n": 20,
+     "desc": "Bottom bars along Ly",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 1.1,
+     "n": 50,
+     "desc": "Top bars at supports (Lx edges)",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 1.35,
+     "n": 40,
+     "desc": "Top bars at supports (Ly edges)",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 23.625
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 1.3125
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 2.625
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 20
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 2.5
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 20
+    }
+   ],
+   "intersections": 500,
+   "rebarKgNet": 195.18518518518516,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "195.19 kg"
+    ],
+    [
+     "Concrete",
+     "2.500 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "20.00 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-15",
+   "mark": "W1",
+   "type": "rcwall",
+   "level": "lvl-second",
+   "qty": 1,
+   "inputs": {
+    "L": 3,
+    "H": 3,
+    "t": 0.15,
+    "cover": 25,
+    "dV": 10,
+    "sV": 200,
+    "lapV": true,
+    "dH": 10,
+    "sH": 200,
+    "layers": 2,
+    "cls": "A",
+    "form": true
+   },
+   "bars": [
+    {
+     "dia": 10,
+     "len": 3.4,
+     "n": 30,
+     "desc": "Vertical bars",
+     "div": "REBAR"
+    },
+    {
+     "dia": 10,
+     "len": 2.95,
+     "n": 30,
+     "desc": "Horizontal bars",
+     "div": "REBAR"
+    }
+   ],
+   "lines": [
+    {
+     "div": "CONC",
+     "code": "CEM",
+     "qty": 12.7575
+    },
+    {
+     "div": "CONC",
+     "code": "SAND",
+     "qty": 0.70875
+    },
+    {
+     "div": "CONC",
+     "code": "GRAV",
+     "qty": 1.4175
+    },
+    {
+     "div": "FORM",
+     "code": "FORM",
+     "qty": 18
+    }
+   ],
+   "labor": [
+    {
+     "div": "CONC",
+     "code": "L_CONC",
+     "qty": 1.3499999999999999
+    },
+    {
+     "div": "FORM",
+     "code": "L_FORM",
+     "qty": 18
+    }
+   ],
+   "intersections": 450,
+   "rebarKgNet": 117.59259259259258,
+   "info": [
+    [
+     "Rebar (net, 1 element)",
+     "117.59 kg"
+    ],
+    [
+     "Concrete",
+     "1.350 m³ (class A)"
+    ],
+    [
+     "Formwork",
+     "18.00 m²"
+    ]
+   ]
+  },
+  {
+   "id": "el-16",
+   "mark": "CL3",
+   "type": "ceiling",
+   "level": "lvl-second",
+   "qty": 2,
+   "inputs": {
+    "L": 2.5,
+    "W": 2,
+    "sys": "pvc",
+    "board": "GYP9",
+    "fsp": 0.6,
+    "waste": 5
+   },
+   "bars": [],
+   "lines": [
+    {
+     "div": "CEIL",
+     "code": "PVC",
+     "qty": 4.411764705882352
+    },
+    {
+     "div": "CEIL",
+     "code": "MF",
+     "qty": 2.52
+    },
+    {
+     "div": "CEIL",
+     "code": "PVCM",
+     "qty": 3.1500000000000004
+    },
+    {
+     "div": "CEIL",
+     "code": "CSCR",
+     "qty": 60
+    }
+   ],
+   "labor": [
+    {
+     "div": "CEIL",
+     "code": "L_CEIL",
+     "qty": 5
+    }
+   ],
+   "intersections": 0,
+   "rebarKgNet": 0,
+   "info": [
+    [
+     "Ceiling area",
+     "5.00 m²"
+    ],
+    [
+     "Perimeter",
+     "9.00 m"
+    ]
+   ]
+  },
+  {
+   "id": "el-17",
+   "mark": "CL4",
+   "type": "ceiling",
+   "level": "lvl-second",
+   "qty": 1,
+   "inputs": {
+    "L": 4,
+    "W": 3,
+    "sys": "wood",
+    "board": "PLY6",
+    "fsp": 0.6,
+    "waste": 5
+   },
+   "bars": [],
+   "lines": [
+    {
+     "div": "CEIL",
+     "code": "PLY6",
+     "qty": 4.232733136253696
+    },
+    {
+     "div": "CEIL",
+     "code": "LUM",
+     "qty": 55.137600000000006
+    },
+    {
+     "div": "CEIL",
+     "code": "NAIL",
+     "qty": 1.2000000000000002
+    }
+   ],
+   "labor": [
+    {
+     "div": "CEIL",
+     "code": "L_CEIL",
+     "qty": 12
+    }
+   ],
+   "intersections": 0,
+   "rebarKgNet": 0,
+   "info": [
+    [
+     "Ceiling area",
+     "12.00 m²"
+    ],
+    [
+     "Perimeter",
+     "14.00 m"
+    ],
+    [
+     "Frame length",
+     "48.00 m"
+    ]
+   ]
+  },
+  {
+   "id": "el-18",
+   "mark": "CL5",
+   "type": "ceiling",
+   "level": "lvl-second",
+   "qty": 1,
+   "inputs": {
+    "L": 3,
+    "W": 3,
+    "sys": "fc",
+    "board": "FC6",
+    "fsp": 0.4,
+    "waste": 5
+   },
+   "bars": [],
+   "lines": [
+    {
+     "div": "CEIL",
+     "code": "FC6",
+     "qty": 3.1745498521902715
+    },
+    {
+     "div": "CEIL",
+     "code": "CC",
+     "qty": 2.52
+    },
+    {
+     "div": "CEIL",
+     "code": "MF",
+     "qty": 5.670000000000001
+    },
+    {
+     "div": "CEIL",
+     "code": "WA",
+     "qty": 4.2
+    },
+    {
+     "div": "CEIL",
+     "code": "HANG",
+     "qty": 9.6
+    },
+    {
+     "div": "CEIL",
+     "code": "WCL",
+     "qty": 36
+    },
+    {
+     "div": "CEIL",
+     "code": "CSCR",
+     "qty": 120
+    },
+    {
+     "div": "CEIL",
+     "code": "RIV",
+     "qty": 18
+    }
+   ],
+   "labor": [
+    {
+     "div": "CEIL",
+     "code": "L_CEIL",
+     "qty": 9
+    }
+   ],
+   "intersections": 0,
+   "rebarKgNet": 0,
+   "info": [
+    [
+     "Ceiling area",
+     "9.00 m²"
+    ],
+    [
+     "Perimeter",
+     "12.00 m"
+    ],
+    [
+     "Carrying channel rows",
+     4
+    ],
+    [
+     "Furring rows",
+     9
+    ],
+    [
+     "Hanger points",
+     16
+    ]
+   ]
+  }
+ ],
+ "estimate": [
+  {
+   "level": "lvl-ground",
+   "divisions": {
+    "REBAR": {
+     "materials": {},
+     "labor": {},
+     "intersections": 4780,
+     "rebarPurchase": [
+      {
+       "stock": 10.5,
+       "bars": 84,
+       "purchased": 882,
+       "splices": 8,
+       "dia": 10,
+       "net": 840.55,
+       "netKg": 518.858024691358,
+       "kg": 544.4444444444445,
+       "wastePct": 4.699546485260776
+      },
+      {
+       "stock": 10.5,
+       "bars": 10,
+       "purchased": 105,
+       "splices": 0,
+       "dia": 12,
+       "net": 99.132,
+       "netKg": 88.11733333333333,
+       "kg": 93.33333333333333,
+       "wastePct": 5.588571428571424
+      },
+      {
+       "stock": 9,
+       "bars": 96,
+       "purchased": 864,
+       "splices": 0,
+       "dia": 16,
+       "net": 795,
+       "netKg": 1256.2962962962963,
+       "kg": 1365.3333333333333,
+       "wastePct": 7.986111111111111
+      }
+     ]
+    },
+    "CONC": {
+     "materials": {},
+     "labor": {},
+     "intersections": 0,
+     "rebarPurchase": []
+    },
+    "FORM": {
+     "materials": {},
+     "labor": {},
+     "intersections": 0,
+     "rebarPurchase": []
+    },
+    "MAS": {
+     "materials": {},
+     "labor": {},
+     "intersections": 255,
+     "rebarPurchase": [
+      {
+       "stock": 10.5,
+       "bars": 32,
+       "purchased": 336,
+       "splices": 10,
+       "dia": 10,
+       "net": 323.4,
+       "netKg": 199.6296296296296,
+       "kg": 207.4074074074074,
+       "wastePct": 3.7500000000000067
+      }
+     ]
+    },
+    "PART": {
+     "materials": {},
+     "labor": {},
+     "intersections": 105,
+     "rebarPurchase": [
+      {
+       "stock": 10.5,
+       "bars": 13,
+       "purchased": 136.5,
+       "splices": 5,
+       "dia": 10,
+       "net": 131.39999999999998,
+       "netKg": 81.11111111111109,
+       "kg": 84.25925925925925,
+       "wastePct": 3.7362637362637527
+      }
+     ]
+    },
+    "CEIL": {
+     "materials": {},
+     "labor": {},
+     "intersections": 0,
+     "rebarPurchase": []
+    }
+   }
+  },
+  {
+   "level": "lvl-second",
+   "divisions": {
+    "REBAR": {
+     "materials": {},
+     "labor": {},
+     "intersections": 4776,
+     "rebarPurchase": [
+      {
+       "stock": 10.5,
+       "bars": 209,
+       "purchased": 2194.5,
+       "splices": 0,
+       "dia": 10,
+       "net": 2104.12,
+       "netKg": 1298.8395061728393,
+       "kg": 1354.6296296296296,
+       "wastePct": 4.11847801321486
+      },
+      {
+       "stock": 12,
+       "bars": 40,
+       "purchased": 480,
+       "splices": 0,
+       "dia": 16,
+       "net": 441.03999999999996,
+       "netKg": 696.952098765432,
+       "kg": 758.5185185185185,
+       "wastePct": 8.116666666666674
+      }
+     ]
+    },
+    "CONC": {
+     "materials": {},
+     "labor": {},
+     "intersections": 0,
+     "rebarPurchase": []
+    },
+    "FORM": {
+     "materials": {},
+     "labor": {},
+     "intersections": 0,
+     "rebarPurchase": []
+    },
+    "CEIL": {
+     "materials": {},
+     "labor": {},
+     "intersections": 0,
+     "rebarPurchase": []
+    }
+   }
+  }
+ ],
+ "boq": {
+  "rows": [
+   {
+    "kind": "div",
+    "text": "Reinforcing Steel Works"
+   },
+   {
+    "kind": "lvl",
+    "text": "Ground floor"
+   },
+   {
+    "kind": "mat",
+    "code": "RB10",
+    "name": "10mm deformed bar (84 pcs × 10.5 m)",
+    "unit": "kg",
+    "qty": 544.44,
+    "rate": 55,
+    "amt": 29944.200000000004
+   },
+   {
+    "kind": "mat",
+    "code": "RB12",
+    "name": "12mm deformed bar (10 pcs × 10.5 m)",
+    "unit": "kg",
+    "qty": 93.33,
+    "rate": 55,
+    "amt": 5133.15
+   },
+   {
+    "kind": "mat",
+    "code": "RB16",
+    "name": "16mm deformed bar (96 pcs × 9 m)",
+    "unit": "kg",
+    "qty": 1365.33,
+    "rate": 55,
+    "amt": 75093.15
+   },
+   {
+    "kind": "mat",
+    "code": "TW",
+    "name": "Tie wire #16 GI",
+    "unit": "kg",
+    "qty": 27.06,
+    "rate": 95,
+    "amt": 2570.7
+   },
+   {
+    "kind": "lab",
+    "code": "L_RB",
+    "name": "Labor – rebar cutting, bending & installation",
+    "unit": "kg",
+    "qty": 1863.27,
+    "rate": 12,
+    "amt": 22359.239999999998
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Ground floor",
+    "mat": 112741.2,
+    "lab": 22359.239999999998,
+    "amt": 135100.44
+   },
+   {
+    "kind": "lvl",
+    "text": "Second floor"
+   },
+   {
+    "kind": "mat",
+    "code": "RB10",
+    "name": "10mm deformed bar (209 pcs × 10.5 m)",
+    "unit": "kg",
+    "qty": 1354.63,
+    "rate": 55,
+    "amt": 74504.65000000001
+   },
+   {
+    "kind": "mat",
+    "code": "RB16",
+    "name": "16mm deformed bar (40 pcs × 12 m)",
+    "unit": "kg",
+    "qty": 758.52,
+    "rate": 55,
+    "amt": 41718.6
+   },
+   {
+    "kind": "mat",
+    "code": "TW",
+    "name": "Tie wire #16 GI",
+    "unit": "kg",
+    "qty": 27.03,
+    "rate": 95,
+    "amt": 2567.85
+   },
+   {
+    "kind": "lab",
+    "code": "L_RB",
+    "name": "Labor – rebar cutting, bending & installation",
+    "unit": "kg",
+    "qty": 1995.79,
+    "rate": 12,
+    "amt": 23949.48
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Second floor",
+    "mat": 118791.1,
+    "lab": 23949.48,
+    "amt": 142740.58000000002
+   },
+   {
+    "kind": "div",
+    "text": "Concrete Works"
+   },
+   {
+    "kind": "lvl",
+    "text": "Ground floor"
+   },
+   {
+    "kind": "mat",
+    "code": "CEM",
+    "name": "Portland cement (40 kg)",
+    "unit": "bag",
+    "qty": 214,
+    "rate": 260,
+    "amt": 55640
+   },
+   {
+    "kind": "mat",
+    "code": "SAND",
+    "name": "Washed sand",
+    "unit": "m³",
+    "qty": 11.88,
+    "rate": 1500,
+    "amt": 17820
+   },
+   {
+    "kind": "mat",
+    "code": "GRAV",
+    "name": "Gravel 3/4\"",
+    "unit": "m³",
+    "qty": 23.75,
+    "rate": 1700,
+    "amt": 40375
+   },
+   {
+    "kind": "lab",
+    "code": "L_CONC",
+    "name": "Labor – concrete mixing & placing",
+    "unit": "m³",
+    "qty": 22.62,
+    "rate": 1800,
+    "amt": 40716
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Ground floor",
+    "mat": 113835,
+    "lab": 40716,
+    "amt": 154551
+   },
+   {
+    "kind": "lvl",
+    "text": "Second floor"
+   },
+   {
+    "kind": "mat",
+    "code": "CEM",
+    "name": "Portland cement (40 kg)",
+    "unit": "bag",
+    "qty": 202,
+    "rate": 260,
+    "amt": 52520
+   },
+   {
+    "kind": "mat",
+    "code": "SAND",
+    "name": "Washed sand",
+    "unit": "m³",
+    "qty": 11.17,
+    "rate": 1500,
+    "amt": 16755
+   },
+   {
+    "kind": "mat",
+    "code": "GRAV",
+    "name": "Gravel 3/4\"",
+    "unit": "m³",
+    "qty": 22.34,
+    "rate": 1700,
+    "amt": 37978
+   },
+   {
+    "kind": "lab",
+    "code": "L_CONC",
+    "name": "Labor – concrete mixing & placing",
+    "unit": "m³",
+    "qty": 21.28,
+    "rate": 1800,
+    "amt": 38304
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Second floor",
+    "mat": 107253,
+    "lab": 38304,
+    "amt": 145557
+   },
+   {
+    "kind": "div",
+    "text": "Formworks"
+   },
+   {
+    "kind": "lvl",
+    "text": "Ground floor"
+   },
+   {
+    "kind": "mat",
+    "code": "FORM",
+    "name": "Formwork materials (plywood, lumber, nails)",
+    "unit": "m²",
+    "qty": 137.53,
+    "rate": 380,
+    "amt": 52261.4
+   },
+   {
+    "kind": "lab",
+    "code": "L_FORM",
+    "name": "Labor – formwork fabrication & installation",
+    "unit": "m²",
+    "qty": 137.53,
+    "rate": 280,
+    "amt": 38508.4
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Ground floor",
+    "mat": 52261.4,
+    "lab": 38508.4,
+    "amt": 90769.8
+   },
+   {
+    "kind": "lvl",
+    "text": "Second floor"
+   },
+   {
+    "kind": "mat",
+    "code": "FORM",
+    "name": "Formwork materials (plywood, lumber, nails)",
+    "unit": "m²",
+    "qty": 195.4,
+    "rate": 380,
+    "amt": 74252
+   },
+   {
+    "kind": "lab",
+    "code": "L_FORM",
+    "name": "Labor – formwork fabrication & installation",
+    "unit": "m²",
+    "qty": 195.4,
+    "rate": 280,
+    "amt": 54712
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Second floor",
+    "mat": 74252,
+    "lab": 54712,
+    "amt": 128964
+   },
+   {
+    "kind": "div",
+    "text": "Masonry Works"
+   },
+   {
+    "kind": "lvl",
+    "text": "Ground floor"
+   },
+   {
+    "kind": "mat",
+    "code": "RB10",
+    "name": "10mm deformed bar (32 pcs × 10.5 m)",
+    "unit": "kg",
+    "qty": 207.41,
+    "rate": 55,
+    "amt": 11407.55
+   },
+   {
+    "kind": "mat",
+    "code": "TW",
+    "name": "Tie wire #16 GI",
+    "unit": "kg",
+    "qty": 1.44,
+    "rate": 95,
+    "amt": 136.79999999999998
+   },
+   {
+    "kind": "mat",
+    "code": "CEM",
+    "name": "Portland cement (40 kg)",
+    "unit": "bag",
+    "qty": 113,
+    "rate": 260,
+    "amt": 29380
+   },
+   {
+    "kind": "mat",
+    "code": "SAND",
+    "name": "Washed sand",
+    "unit": "m³",
+    "qty": 9.37,
+    "rate": 1500,
+    "amt": 14054.999999999998
+   },
+   {
+    "kind": "mat",
+    "code": "CHB6",
+    "name": "CHB 6\" (15x20x40)",
+    "unit": "pc",
+    "qty": 1057,
+    "rate": 23,
+    "amt": 24311
+   },
+   {
+    "kind": "lab",
+    "code": "L_CHB",
+    "name": "Labor – CHB laying (incl. reinforcement)",
+    "unit": "m²",
+    "qty": 80.46,
+    "rate": 280,
+    "amt": 22528.8
+   },
+   {
+    "kind": "lab",
+    "code": "L_PLAS",
+    "name": "Labor – plastering",
+    "unit": "m²",
+    "qty": 160.92,
+    "rate": 180,
+    "amt": 28965.6
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Ground floor",
+    "mat": 79290.35,
+    "lab": 51494.399999999994,
+    "amt": 130784.75
+   },
+   {
+    "kind": "div",
+    "text": "Partition Works"
+   },
+   {
+    "kind": "lvl",
+    "text": "Ground floor"
+   },
+   {
+    "kind": "mat",
+    "code": "RB10",
+    "name": "10mm deformed bar (13 pcs × 10.5 m)",
+    "unit": "kg",
+    "qty": 84.26,
+    "rate": 55,
+    "amt": 4634.3
+   },
+   {
+    "kind": "mat",
+    "code": "TW",
+    "name": "Tie wire #16 GI",
+    "unit": "kg",
+    "qty": 0.59,
+    "rate": 95,
+    "amt": 56.05
+   },
+   {
+    "kind": "mat",
+    "code": "CEM",
+    "name": "Portland cement (40 kg)",
+    "unit": "bag",
+    "qty": 29,
+    "rate": 260,
+    "amt": 7540
+   },
+   {
+    "kind": "mat",
+    "code": "SAND",
+    "name": "Washed sand",
+    "unit": "m³",
+    "qty": 2.34,
+    "rate": 1500,
+    "amt": 3510
+   },
+   {
+    "kind": "mat",
+    "code": "CHB4",
+    "name": "CHB 4\" (10x20x40)",
+    "unit": "pc",
+    "qty": 407,
+    "rate": 16,
+    "amt": 6512
+   },
+   {
+    "kind": "mat",
+    "code": "GYP12",
+    "name": "Gypsum board 12mm 1.22x2.44",
+    "unit": "pc",
+    "qty": 12,
+    "rate": 540,
+    "amt": 6480
+   },
+   {
+    "kind": "mat",
+    "code": "STUD",
+    "name": "Metal stud 3.0m",
+    "unit": "pc",
+    "qty": 19,
+    "rate": 190,
+    "amt": 3610
+   },
+   {
+    "kind": "mat",
+    "code": "TRK",
+    "name": "Metal track 3.0m",
+    "unit": "pc",
+    "qty": 5,
+    "rate": 150,
+    "amt": 750
+   },
+   {
+    "kind": "mat",
+    "code": "ANC",
+    "name": "Concrete anchor / nail",
+    "unit": "pc",
+    "qty": 22,
+    "rate": 5,
+    "amt": 110
+   },
+   {
+    "kind": "mat",
+    "code": "CSCR",
+    "name": "Board screws",
+    "unit": "pc",
+    "qty": 360,
+    "rate": 0.6,
+    "amt": 216
+   },
+   {
+    "kind": "mat",
+    "code": "JT",
+    "name": "Joint tape",
+    "unit": "m",
+    "qty": 39.17,
+    "rate": 3,
+    "amt": 117.51
+   },
+   {
+    "kind": "mat",
+    "code": "JC",
+    "name": "Joint compound",
+    "unit": "kg",
+    "qty": 16.32,
+    "rate": 70,
+    "amt": 1142.4
+   },
+   {
+    "kind": "mat",
+    "code": "CUB",
+    "name": "Toilet cubicle set",
+    "unit": "set",
+    "qty": 2,
+    "rate": 25000,
+    "amt": 50000
+   },
+   {
+    "kind": "lab",
+    "code": "L_CHB",
+    "name": "Labor – CHB laying (incl. reinforcement)",
+    "unit": "m²",
+    "qty": 30.96,
+    "rate": 280,
+    "amt": 8668.800000000001
+   },
+   {
+    "kind": "lab",
+    "code": "L_PLAS",
+    "name": "Labor – plastering",
+    "unit": "m²",
+    "qty": 61.92,
+    "rate": 180,
+    "amt": 11145.6
+   },
+   {
+    "kind": "lab",
+    "code": "L_PART",
+    "name": "Labor – partition installation",
+    "unit": "m²",
+    "qty": 16.32,
+    "rate": 320,
+    "amt": 5222.4
+   },
+   {
+    "kind": "lab",
+    "code": "L_CUB",
+    "name": "Labor – cubicle installation",
+    "unit": "set",
+    "qty": 2,
+    "rate": 3500,
+    "amt": 7000
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Ground floor",
+    "mat": 84678.26000000001,
+    "lab": 32036.800000000003,
+    "amt": 116715.06000000001
+   },
+   {
+    "kind": "div",
+    "text": "Ceiling Works"
+   },
+   {
+    "kind": "lvl",
+    "text": "Ground floor"
+   },
+   {
+    "kind": "mat",
+    "code": "GYP9",
+    "name": "Gypsum board 9mm 1.22x2.44",
+    "unit": "pc",
+    "qty": 15,
+    "rate": 480,
+    "amt": 7200
+   },
+   {
+    "kind": "mat",
+    "code": "CC",
+    "name": "Carrying channel 5.0m",
+    "unit": "pc",
+    "qty": 11,
+    "rate": 210,
+    "amt": 2310
+   },
+   {
+    "kind": "mat",
+    "code": "MF",
+    "name": "Metal furring 5.0m",
+    "unit": "pc",
+    "qty": 24,
+    "rate": 170,
+    "amt": 4080
+   },
+   {
+    "kind": "mat",
+    "code": "WA",
+    "name": "Wall angle 3.0m",
+    "unit": "pc",
+    "qty": 13,
+    "rate": 85,
+    "amt": 1105
+   },
+   {
+    "kind": "mat",
+    "code": "HANG",
+    "name": "Hanger wire / rod",
+    "unit": "m",
+    "qty": 48.09,
+    "rate": 20,
+    "amt": 961.8000000000001
+   },
+   {
+    "kind": "mat",
+    "code": "WCL",
+    "name": "W-clip / connector",
+    "unit": "pc",
+    "qty": 140,
+    "rate": 6,
+    "amt": 840
+   },
+   {
+    "kind": "mat",
+    "code": "MR",
+    "name": "Main runner 3.66m",
+    "unit": "pc",
+    "qty": 8,
+    "rate": 210,
+    "amt": 1680
+   },
+   {
+    "kind": "mat",
+    "code": "CT4",
+    "name": "Cross tee 1.22m",
+    "unit": "pc",
+    "qty": 43,
+    "rate": 75,
+    "amt": 3225
+   },
+   {
+    "kind": "mat",
+    "code": "CT2",
+    "name": "Cross tee 0.61m",
+    "unit": "pc",
+    "qty": 43,
+    "rate": 40,
+    "amt": 1720
+   },
+   {
+    "kind": "mat",
+    "code": "ACT",
+    "name": "Acoustic tile 600x600",
+    "unit": "pc",
+    "qty": 88,
+    "rate": 90,
+    "amt": 7920
+   },
+   {
+    "kind": "mat",
+    "code": "AWA",
+    "name": "Acoustic wall angle 3.05m",
+    "unit": "pc",
+    "qty": 8,
+    "rate": 80,
+    "amt": 640
+   },
+   {
+    "kind": "mat",
+    "code": "CSCR",
+    "name": "Board screws",
+    "unit": "pc",
+    "qty": 480,
+    "rate": 0.6,
+    "amt": 288
+   },
+   {
+    "kind": "mat",
+    "code": "RIV",
+    "name": "Blind rivets",
+    "unit": "pc",
+    "qty": 56,
+    "rate": 1.2,
+    "amt": 67.2
+   },
+   {
+    "kind": "mat",
+    "code": "JT",
+    "name": "Joint tape",
+    "unit": "m",
+    "qty": 48,
+    "rate": 3,
+    "amt": 144
+   },
+   {
+    "kind": "mat",
+    "code": "JC",
+    "name": "Joint compound",
+    "unit": "kg",
+    "qty": 20,
+    "rate": 70,
+    "amt": 1400
+   },
+   {
+    "kind": "lab",
+    "code": "L_CEIL",
+    "name": "Labor – ceiling installation",
+    "unit": "m²",
+    "qty": 70,
+    "rate": 380,
+    "amt": 26600
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Ground floor",
+    "mat": 33581,
+    "lab": 26600,
+    "amt": 60181
+   },
+   {
+    "kind": "lvl",
+    "text": "Second floor"
+   },
+   {
+    "kind": "mat",
+    "code": "FC6",
+    "name": "Fiber cement board 6mm 1.22x2.44",
+    "unit": "pc",
+    "qty": 4,
+    "rate": 540,
+    "amt": 2160
+   },
+   {
+    "kind": "mat",
+    "code": "PLY6",
+    "name": "Marine plywood 1/4\" 1.22x2.44",
+    "unit": "pc",
+    "qty": 5,
+    "rate": 650,
+    "amt": 3250
+   },
+   {
+    "kind": "mat",
+    "code": "CC",
+    "name": "Carrying channel 5.0m",
+    "unit": "pc",
+    "qty": 3,
+    "rate": 210,
+    "amt": 630
+   },
+   {
+    "kind": "mat",
+    "code": "MF",
+    "name": "Metal furring 5.0m",
+    "unit": "pc",
+    "qty": 11,
+    "rate": 170,
+    "amt": 1870
+   },
+   {
+    "kind": "mat",
+    "code": "WA",
+    "name": "Wall angle 3.0m",
+    "unit": "pc",
+    "qty": 5,
+    "rate": 85,
+    "amt": 425
+   },
+   {
+    "kind": "mat",
+    "code": "HANG",
+    "name": "Hanger wire / rod",
+    "unit": "m",
+    "qty": 9.6,
+    "rate": 20,
+    "amt": 192
+   },
+   {
+    "kind": "mat",
+    "code": "WCL",
+    "name": "W-clip / connector",
+    "unit": "pc",
+    "qty": 36,
+    "rate": 6,
+    "amt": 216
+   },
+   {
+    "kind": "mat",
+    "code": "PVC",
+    "name": "PVC ceiling panel",
+    "unit": "pc",
+    "qty": 9,
+    "rate": 320,
+    "amt": 2880
+   },
+   {
+    "kind": "mat",
+    "code": "PVCM",
+    "name": "PVC molding 3.0m",
+    "unit": "pc",
+    "qty": 7,
+    "rate": 120,
+    "amt": 840
+   },
+   {
+    "kind": "mat",
+    "code": "LUM",
+    "name": "Lumber 2\"x2\" (good lumber)",
+    "unit": "bd.ft",
+    "qty": 55.14,
+    "rate": 55,
+    "amt": 3032.7
+   },
+   {
+    "kind": "mat",
+    "code": "NAIL",
+    "name": "Common wire nails",
+    "unit": "kg",
+    "qty": 1.2,
+    "rate": 90,
+    "amt": 108
+   },
+   {
+    "kind": "mat",
+    "code": "CSCR",
+    "name": "Board screws",
+    "unit": "pc",
+    "qty": 240,
+    "rate": 0.6,
+    "amt": 144
+   },
+   {
+    "kind": "mat",
+    "code": "RIV",
+    "name": "Blind rivets",
+    "unit": "pc",
+    "qty": 18,
+    "rate": 1.2,
+    "amt": 21.599999999999998
+   },
+   {
+    "kind": "lab",
+    "code": "L_CEIL",
+    "name": "Labor – ceiling installation",
+    "unit": "m²",
+    "qty": 31,
+    "rate": 380,
+    "amt": 11780
+   },
+   {
+    "kind": "sub",
+    "text": "Subtotal – Second floor",
+    "mat": 15769.300000000001,
+    "lab": 11780,
+    "amt": 27549.300000000003
+   }
+  ],
+  "divTotals": [
+   {
+    "div": "REBAR",
+    "name": "Reinforcing Steel Works",
+    "amt": 277841.02
+   },
+   {
+    "div": "CONC",
+    "name": "Concrete Works",
+    "amt": 300108
+   },
+   {
+    "div": "FORM",
+    "name": "Formworks",
+    "amt": 219733.8
+   },
+   {
+    "div": "MAS",
+    "name": "Masonry Works",
+    "amt": 130784.75
+   },
+   {
+    "div": "PART",
+    "name": "Partition Works",
+    "amt": 116715.06000000001
+   },
+   {
+    "div": "CEIL",
+    "name": "Ceiling Works",
+    "amt": 87730.3
+   }
+  ],
+  "totals": {
+   "direct": 1132912.9300000002,
+   "ocm": 90633.03440000002,
+   "profit": 113291.293,
+   "cont": 56645.6465,
+   "sub": 1393482.9039000003,
+   "vat": 167217.94846800005,
+   "grand": 1560700.8523680004
+  }
+ },
+ "reconciliation": {
+  "sumOfUnroundedLineAmounts": 1132912.9300000004,
+  "sumOfLineAmountsRoundedToCentavo": 1132912.9300000004,
+  "directCost": 1132912.9300000002
+ },
+ "selfTest": [
+  {
+   "name": "Bar weight d²/162",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "name": "Column 0.4×0.4×3.0, 8-16mm, 10mm ties @150",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "name": "Footing 1.5×1.5×0.4, 16mm @150 both ways, hooks",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "name": "Lap splitting & commercial length",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "name": "CHB wall 5×3 m, 1 door 0.9×2.1, 4\" class B, plaster 2 faces 16mm class B",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "name": "Gypsum ceiling 5×4 m, furring @0.4, no waste",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "name": "Drywall 4×3 m, gypsum 2 faces, studs @406, no waste",
+   "ok": true,
+   "fails": []
+  },
+  {
+   "name": "Openings parser",
+   "ok": true,
+   "fails": []
+  }
+ ],
+ "exports": {
+  "csv": "\"Item\",\"Description\",\"Qty\",\"Unit\",\"Unit cost\",\"Amount\"\r\n\"\",\"Reinforcing Steel Works\"\r\n\"\",\"Ground floor\"\r\n\"1\",\"10mm deformed bar (84 pcs × 10.5 m)\",\"544.44\",\"kg\",\"55\",\"29944.2\"\r\n\"2\",\"12mm deformed bar (10 pcs × 10.5 m)\",\"93.33\",\"kg\",\"55\",\"5133.15\"\r\n\"3\",\"16mm deformed bar (96 pcs × 9 m)\",\"1365.33\",\"kg\",\"55\",\"75093.15\"\r\n\"4\",\"Tie wire #16 GI\",\"27.06\",\"kg\",\"95\",\"2570.7\"\r\n\"5\",\"Labor – rebar cutting, bending & installation\",\"1863.27\",\"kg\",\"12\",\"22359.24\"\r\n\"\",\"Subtotal – Ground floor\",\"\",\"\",\"\",\"135100.44\"\r\n\"\",\"Second floor\"\r\n\"6\",\"10mm deformed bar (209 pcs × 10.5 m)\",\"1354.63\",\"kg\",\"55\",\"74504.65\"\r\n\"7\",\"16mm deformed bar (40 pcs × 12 m)\",\"758.52\",\"kg\",\"55\",\"41718.6\"\r\n\"8\",\"Tie wire #16 GI\",\"27.03\",\"kg\",\"95\",\"2567.85\"\r\n\"9\",\"Labor – rebar cutting, bending & installation\",\"1995.79\",\"kg\",\"12\",\"23949.48\"\r\n\"\",\"Subtotal – Second floor\",\"\",\"\",\"\",\"142740.58\"\r\n\"\",\"Concrete Works\"\r\n\"\",\"Ground floor\"\r\n\"1\",\"Portland cement (40 kg)\",\"214\",\"bag\",\"260\",\"55640\"\r\n\"2\",\"Washed sand\",\"11.88\",\"m³\",\"1500\",\"17820\"\r\n\"3\",\"Gravel 3/4\"\"\",\"23.75\",\"m³\",\"1700\",\"40375\"\r\n\"4\",\"Labor – concrete mixing & placing\",\"22.62\",\"m³\",\"1800\",\"40716\"\r\n\"\",\"Subtotal – Ground floor\",\"\",\"\",\"\",\"154551\"\r\n\"\",\"Second floor\"\r\n\"5\",\"Portland cement (40 kg)\",\"202\",\"bag\",\"260\",\"52520\"\r\n\"6\",\"Washed sand\",\"11.17\",\"m³\",\"1500\",\"16755\"\r\n\"7\",\"Gravel 3/4\"\"\",\"22.34\",\"m³\",\"1700\",\"37978\"\r\n\"8\",\"Labor – concrete mixing & placing\",\"21.28\",\"m³\",\"1800\",\"38304\"\r\n\"\",\"Subtotal – Second floor\",\"\",\"\",\"\",\"145557\"\r\n\"\",\"Formworks\"\r\n\"\",\"Ground floor\"\r\n\"1\",\"Formwork materials (plywood, lumber, nails)\",\"137.53\",\"m²\",\"380\",\"52261.4\"\r\n\"2\",\"Labor – formwork fabrication & installation\",\"137.53\",\"m²\",\"280\",\"38508.4\"\r\n\"\",\"Subtotal – Ground floor\",\"\",\"\",\"\",\"90769.8\"\r\n\"\",\"Second floor\"\r\n\"3\",\"Formwork materials (plywood, lumber, nails)\",\"195.4\",\"m²\",\"380\",\"74252\"\r\n\"4\",\"Labor – formwork fabrication & installation\",\"195.4\",\"m²\",\"280\",\"54712\"\r\n\"\",\"Subtotal – Second floor\",\"\",\"\",\"\",\"128964\"\r\n\"\",\"Masonry Works\"\r\n\"\",\"Ground floor\"\r\n\"1\",\"10mm deformed bar (32 pcs × 10.5 m)\",\"207.41\",\"kg\",\"55\",\"11407.55\"\r\n\"2\",\"Tie wire #16 GI\",\"1.44\",\"kg\",\"95\",\"136.8\"\r\n\"3\",\"Portland cement (40 kg)\",\"113\",\"bag\",\"260\",\"29380\"\r\n\"4\",\"Washed sand\",\"9.37\",\"m³\",\"1500\",\"14055\"\r\n\"5\",\"CHB 6\"\" (15x20x40)\",\"1057\",\"pc\",\"23\",\"24311\"\r\n\"6\",\"Labor – CHB laying (incl. reinforcement)\",\"80.46\",\"m²\",\"280\",\"22528.8\"\r\n\"7\",\"Labor – plastering\",\"160.92\",\"m²\",\"180\",\"28965.6\"\r\n\"\",\"Subtotal – Ground floor\",\"\",\"\",\"\",\"130784.75\"\r\n\"\",\"Partition Works\"\r\n\"\",\"Ground floor\"\r\n\"1\",\"10mm deformed bar (13 pcs × 10.5 m)\",\"84.26\",\"kg\",\"55\",\"4634.3\"\r\n\"2\",\"Tie wire #16 GI\",\"0.59\",\"kg\",\"95\",\"56.05\"\r\n\"3\",\"Portland cement (40 kg)\",\"29\",\"bag\",\"260\",\"7540\"\r\n\"4\",\"Washed sand\",\"2.34\",\"m³\",\"1500\",\"3510\"\r\n\"5\",\"CHB 4\"\" (10x20x40)\",\"407\",\"pc\",\"16\",\"6512\"\r\n\"6\",\"Gypsum board 12mm 1.22x2.44\",\"12\",\"pc\",\"540\",\"6480\"\r\n\"7\",\"Metal stud 3.0m\",\"19\",\"pc\",\"190\",\"3610\"\r\n\"8\",\"Metal track 3.0m\",\"5\",\"pc\",\"150\",\"750\"\r\n\"9\",\"Concrete anchor / nail\",\"22\",\"pc\",\"5\",\"110\"\r\n\"10\",\"Board screws\",\"360\",\"pc\",\"0.6\",\"216\"\r\n\"11\",\"Joint tape\",\"39.17\",\"m\",\"3\",\"117.51\"\r\n\"12\",\"Joint compound\",\"16.32\",\"kg\",\"70\",\"1142.4\"\r\n\"13\",\"Toilet cubicle set\",\"2\",\"set\",\"25000\",\"50000\"\r\n\"14\",\"Labor – CHB laying (incl. reinforcement)\",\"30.96\",\"m²\",\"280\",\"8668.8\"\r\n\"15\",\"Labor – plastering\",\"61.92\",\"m²\",\"180\",\"11145.6\"\r\n\"16\",\"Labor – partition installation\",\"16.32\",\"m²\",\"320\",\"5222.4\"\r\n\"17\",\"Labor – cubicle installation\",\"2\",\"set\",\"3500\",\"7000\"\r\n\"\",\"Subtotal – Ground floor\",\"\",\"\",\"\",\"116715.06\"\r\n\"\",\"Ceiling Works\"\r\n\"\",\"Ground floor\"\r\n\"1\",\"Gypsum board 9mm 1.22x2.44\",\"15\",\"pc\",\"480\",\"7200\"\r\n\"2\",\"Carrying channel 5.0m\",\"11\",\"pc\",\"210\",\"2310\"\r\n\"3\",\"Metal furring 5.0m\",\"24\",\"pc\",\"170\",\"4080\"\r\n\"4\",\"Wall angle 3.0m\",\"13\",\"pc\",\"85\",\"1105\"\r\n\"5\",\"Hanger wire / rod\",\"48.09\",\"m\",\"20\",\"961.8\"\r\n\"6\",\"W-clip / connector\",\"140\",\"pc\",\"6\",\"840\"\r\n\"7\",\"Main runner 3.66m\",\"8\",\"pc\",\"210\",\"1680\"\r\n\"8\",\"Cross tee 1.22m\",\"43\",\"pc\",\"75\",\"3225\"\r\n\"9\",\"Cross tee 0.61m\",\"43\",\"pc\",\"40\",\"1720\"\r\n\"10\",\"Acoustic tile 600x600\",\"88\",\"pc\",\"90\",\"7920\"\r\n\"11\",\"Acoustic wall angle 3.05m\",\"8\",\"pc\",\"80\",\"640\"\r\n\"12\",\"Board screws\",\"480\",\"pc\",\"0.6\",\"288\"\r\n\"13\",\"Blind rivets\",\"56\",\"pc\",\"1.2\",\"67.2\"\r\n\"14\",\"Joint tape\",\"48\",\"m\",\"3\",\"144\"\r\n\"15\",\"Joint compound\",\"20\",\"kg\",\"70\",\"1400\"\r\n\"16\",\"Labor – ceiling installation\",\"70\",\"m²\",\"380\",\"26600\"\r\n\"\",\"Subtotal – Ground floor\",\"\",\"\",\"\",\"60181\"\r\n\"\",\"Second floor\"\r\n\"17\",\"Fiber cement board 6mm 1.22x2.44\",\"4\",\"pc\",\"540\",\"2160\"\r\n\"18\",\"Marine plywood 1/4\"\" 1.22x2.44\",\"5\",\"pc\",\"650\",\"3250\"\r\n\"19\",\"Carrying channel 5.0m\",\"3\",\"pc\",\"210\",\"630\"\r\n\"20\",\"Metal furring 5.0m\",\"11\",\"pc\",\"170\",\"1870\"\r\n\"21\",\"Wall angle 3.0m\",\"5\",\"pc\",\"85\",\"425\"\r\n\"22\",\"Hanger wire / rod\",\"9.6\",\"m\",\"20\",\"192\"\r\n\"23\",\"W-clip / connector\",\"36\",\"pc\",\"6\",\"216\"\r\n\"24\",\"PVC ceiling panel\",\"9\",\"pc\",\"320\",\"2880\"\r\n\"25\",\"PVC molding 3.0m\",\"7\",\"pc\",\"120\",\"840\"\r\n\"26\",\"Lumber 2\"\"x2\"\" (good lumber)\",\"55.14\",\"bd.ft\",\"55\",\"3032.7\"\r\n\"27\",\"Common wire nails\",\"1.2\",\"kg\",\"90\",\"108\"\r\n\"28\",\"Board screws\",\"240\",\"pc\",\"0.6\",\"144\"\r\n\"29\",\"Blind rivets\",\"18\",\"pc\",\"1.2\",\"21.6\"\r\n\"30\",\"Labor – ceiling installation\",\"31\",\"m²\",\"380\",\"11780\"\r\n\"\",\"Subtotal – Second floor\",\"\",\"\",\"\",\"27549.3\"\r\n\r\n\"\",\"Total direct cost\",\"\",\"\",\"\",\"1132912.93\"\r\n\"\",\"OCM\",\"\",\"\",\"\",\"90633.03\"\r\n\"\",\"Profit\",\"\",\"\",\"\",\"113291.29\"\r\n\"\",\"Contingency\",\"\",\"\",\"\",\"56645.65\"\r\n\"\",\"VAT\",\"\",\"\",\"\",\"167217.95\"\r\n\"\",\"TOTAL PROJECT COST\",\"\",\"\",\"\",\"1560700.85\"",
+  "csvSha256": "83c95931f37dbfecb76661d0bb0ea147fd9ec8dd41c9c670b89a5fc559c65931",
+  "xlsSha256": "f503fe1e240d5cc33a519ff2059020831b350e70aa76e02891c7e3eb25534d26",
+  "xlsLength": 15034,
+  "browserTotals": {
+   "direct": 1132912.9300000002,
+   "ocm": 90633.03440000002,
+   "profit": 113291.293,
+   "cont": 56645.6465,
+   "sub": 1393482.9039000003,
+   "vat": 167217.94846800005,
+   "grand": 1560700.8523680004
+  },
+  "browserElementCount": 18
+ }
+}

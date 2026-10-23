@@ -1,0 +1,820 @@
+{
+ "version": 1,
+ "project": {
+  "name": "Sample Residence – 2 Storey",
+  "location": "Quezon City, Metro Manila",
+  "owner": "Baseline fixture",
+  "date": "2026-10-23",
+  "notes": "Synthetic golden-master project. Dimensions are test inputs, not from a real drawing."
+ },
+ "settings": {
+  "stock": "auto",
+  "ocm": 8,
+  "profit": 10,
+  "contingency": 5,
+  "vat": 12
+ },
+ "levels": [
+  {
+   "id": "lvl-ground",
+   "name": "Ground floor",
+   "h": 3
+  },
+  {
+   "id": "lvl-second",
+   "name": "Second floor",
+   "h": 3
+  }
+ ],
+ "elements": [
+  {
+   "id": "el-01",
+   "type": "footing",
+   "mark": "F1",
+   "level": "lvl-ground",
+   "qty": 9,
+   "inp": {
+    "L": 1.5,
+    "W": 1.5,
+    "T": 0.4,
+    "cover": 75,
+    "dL": 16,
+    "sL": 150,
+    "dW": 16,
+    "sW": 150,
+    "hook": true,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-02",
+   "type": "wallfooting",
+   "mark": "WF1",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inp": {
+    "L": 30,
+    "B": 0.6,
+    "T": 0.25,
+    "cover": 75,
+    "dT": 12,
+    "sT": 200,
+    "hook": false,
+    "dLn": 10,
+    "nLn": 4,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-03",
+   "type": "column",
+   "mark": "C1",
+   "level": "lvl-ground",
+   "qty": 9,
+   "inp": {
+    "b": 0.4,
+    "h": 0.4,
+    "H": 3,
+    "cover": 40,
+    "nM": 8,
+    "dM": 16,
+    "lapTop": true,
+    "botAnch": 0,
+    "dT": 10,
+    "sT": 150,
+    "Lo": 0.5,
+    "sLo": 100,
+    "ct": 0,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-04",
+   "type": "beam",
+   "mark": "B1",
+   "level": "lvl-ground",
+   "qty": 12,
+   "inp": {
+    "b": 0.25,
+    "h": 0.4,
+    "L": 4,
+    "cover": 40,
+    "nTop": 2,
+    "dTop": 16,
+    "nBot": 2,
+    "dBot": 16,
+    "anch": 0.3,
+    "nXT": 0,
+    "dXT": 16,
+    "lXT": 1.5,
+    "nXB": 0,
+    "dXB": 16,
+    "lXB": 3,
+    "dS": 10,
+    "sS": 150,
+    "Lo": 0,
+    "sLo": 100,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-05",
+   "type": "stairs",
+   "mark": "ST1",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inp": {
+    "W": 1.2,
+    "run": 3,
+    "rise": 1.5,
+    "N": 9,
+    "t": 0.15,
+    "cover": 20,
+    "dM": 12,
+    "sM": 150,
+    "anch": 0.3,
+    "dD": 10,
+    "sD": 200,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-06",
+   "type": "chbwall",
+   "mark": "CHB1",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inp": {
+    "L": 30,
+    "H": 3,
+    "open": "0.9x2.1x2, 1.2x1.2x4",
+    "size": "6",
+    "mcls": "B",
+    "waste": 5,
+    "faces": 2,
+    "plt": 16,
+    "pcls": "B",
+    "dV": 10,
+    "sV": 0.6,
+    "vX": 0.4,
+    "dH": 10,
+    "cH": 3
+   }
+  },
+  {
+   "id": "el-07",
+   "type": "chbpart",
+   "mark": "P1",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inp": {
+    "L": 12,
+    "H": 3,
+    "open": "0.8x2.1x3",
+    "size": "4",
+    "mcls": "B",
+    "waste": 5,
+    "faces": 2,
+    "plt": 16,
+    "pcls": "B",
+    "dV": 10,
+    "sV": 0.6,
+    "vX": 0.4,
+    "dH": 10,
+    "cH": 3
+   }
+  },
+  {
+   "id": "el-08",
+   "type": "drywall",
+   "mark": "DW1",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inp": {
+    "L": 6,
+    "H": 3,
+    "open": "0.8x2.1x1",
+    "board": "GYP12",
+    "faces": 2,
+    "sp": 0.406,
+    "ins": false,
+    "waste": 5
+   }
+  },
+  {
+   "id": "el-09",
+   "type": "cubicle",
+   "mark": "TC1",
+   "level": "lvl-ground",
+   "qty": 2,
+   "inp": {
+    "desc": "Phenolic toilet cubicle, standard",
+    "sets": 1
+   }
+  },
+  {
+   "id": "el-10",
+   "type": "ceiling",
+   "mark": "CL1",
+   "level": "lvl-ground",
+   "qty": 2,
+   "inp": {
+    "L": 5,
+    "W": 4,
+    "sys": "gyp",
+    "board": "GYP9",
+    "fsp": 0.4,
+    "waste": 5
+   }
+  },
+  {
+   "id": "el-11",
+   "type": "ceiling",
+   "mark": "CL2",
+   "level": "lvl-ground",
+   "qty": 1,
+   "inp": {
+    "L": 6,
+    "W": 5,
+    "sys": "acoustic",
+    "board": "GYP9",
+    "fsp": 0.4,
+    "waste": 5
+   }
+  },
+  {
+   "id": "el-12",
+   "type": "column",
+   "mark": "C2",
+   "level": "lvl-second",
+   "qty": 9,
+   "inp": {
+    "b": 0.3,
+    "h": 0.3,
+    "H": 3,
+    "cover": 40,
+    "nM": 4,
+    "dM": 16,
+    "lapTop": true,
+    "botAnch": 0,
+    "dT": 10,
+    "sT": 200,
+    "Lo": 0,
+    "sLo": 100,
+    "ct": 0,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-13",
+   "type": "beam",
+   "mark": "B2",
+   "level": "lvl-second",
+   "qty": 10,
+   "inp": {
+    "b": 0.3,
+    "h": 0.5,
+    "L": 5,
+    "cover": 40,
+    "nTop": 2,
+    "dTop": 16,
+    "nBot": 3,
+    "dBot": 16,
+    "anch": 0.3,
+    "nXT": 2,
+    "dXT": 16,
+    "lXT": 1.5,
+    "nXB": 0,
+    "dXB": 16,
+    "lXB": 3,
+    "dS": 10,
+    "sS": 150,
+    "Lo": 0,
+    "sLo": 100,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-14",
+   "type": "slab",
+   "mark": "S1",
+   "level": "lvl-second",
+   "qty": 4,
+   "inp": {
+    "Lx": 4,
+    "Ly": 5,
+    "t": 0.125,
+    "cover": 20,
+    "anch": 0.1,
+    "dB": 10,
+    "sBx": 200,
+    "sBy": 200,
+    "top": "supports",
+    "dT": 10,
+    "sT": 200,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-15",
+   "type": "rcwall",
+   "mark": "W1",
+   "level": "lvl-second",
+   "qty": 1,
+   "inp": {
+    "L": 3,
+    "H": 3,
+    "t": 0.15,
+    "cover": 25,
+    "dV": 10,
+    "sV": 200,
+    "lapV": true,
+    "dH": 10,
+    "sH": 200,
+    "layers": 2,
+    "cls": "A",
+    "form": true
+   }
+  },
+  {
+   "id": "el-16",
+   "type": "ceiling",
+   "mark": "CL3",
+   "level": "lvl-second",
+   "qty": 2,
+   "inp": {
+    "L": 2.5,
+    "W": 2,
+    "sys": "pvc",
+    "board": "GYP9",
+    "fsp": 0.6,
+    "waste": 5
+   }
+  },
+  {
+   "id": "el-17",
+   "type": "ceiling",
+   "mark": "CL4",
+   "level": "lvl-second",
+   "qty": 1,
+   "inp": {
+    "L": 4,
+    "W": 3,
+    "sys": "wood",
+    "board": "PLY6",
+    "fsp": 0.6,
+    "waste": 5
+   }
+  },
+  {
+   "id": "el-18",
+   "type": "ceiling",
+   "mark": "CL5",
+   "level": "lvl-second",
+   "qty": 1,
+   "inp": {
+    "L": 3,
+    "W": 3,
+    "sys": "fc",
+    "board": "FC6",
+    "fsp": 0.4,
+    "waste": 5
+   }
+  }
+ ],
+ "prices": {
+  "RB10": {
+   "name": "10mm deformed bar",
+   "unit": "kg",
+   "price": 55
+  },
+  "RB12": {
+   "name": "12mm deformed bar",
+   "unit": "kg",
+   "price": 55
+  },
+  "RB16": {
+   "name": "16mm deformed bar",
+   "unit": "kg",
+   "price": 55
+  },
+  "RB20": {
+   "name": "20mm deformed bar",
+   "unit": "kg",
+   "price": 55
+  },
+  "RB25": {
+   "name": "25mm deformed bar",
+   "unit": "kg",
+   "price": 55
+  },
+  "RB28": {
+   "name": "28mm deformed bar",
+   "unit": "kg",
+   "price": 55
+  },
+  "RB32": {
+   "name": "32mm deformed bar",
+   "unit": "kg",
+   "price": 55
+  },
+  "RB36": {
+   "name": "36mm deformed bar",
+   "unit": "kg",
+   "price": 55
+  },
+  "TW": {
+   "name": "Tie wire #16 GI",
+   "unit": "kg",
+   "price": 95
+  },
+  "CEM": {
+   "name": "Portland cement (40 kg)",
+   "unit": "bag",
+   "price": 260
+  },
+  "SAND": {
+   "name": "Washed sand",
+   "unit": "m³",
+   "price": 1500
+  },
+  "GRAV": {
+   "name": "Gravel 3/4\"",
+   "unit": "m³",
+   "price": 1700
+  },
+  "FORM": {
+   "name": "Formwork materials (plywood, lumber, nails)",
+   "unit": "m²",
+   "price": 380
+  },
+  "CHB4": {
+   "name": "CHB 4\" (10x20x40)",
+   "unit": "pc",
+   "price": 16
+  },
+  "CHB5": {
+   "name": "CHB 5\" (12.5x20x40)",
+   "unit": "pc",
+   "price": 19
+  },
+  "CHB6": {
+   "name": "CHB 6\" (15x20x40)",
+   "unit": "pc",
+   "price": 23
+  },
+  "GYP9": {
+   "name": "Gypsum board 9mm 1.22x2.44",
+   "unit": "pc",
+   "price": 480
+  },
+  "GYP12": {
+   "name": "Gypsum board 12mm 1.22x2.44",
+   "unit": "pc",
+   "price": 540
+  },
+  "MR12": {
+   "name": "Moisture-resistant gypsum 12mm 1.22x2.44",
+   "unit": "pc",
+   "price": 780
+  },
+  "FC45": {
+   "name": "Fiber cement board 4.5mm 1.22x2.44",
+   "unit": "pc",
+   "price": 420
+  },
+  "FC6": {
+   "name": "Fiber cement board 6mm 1.22x2.44",
+   "unit": "pc",
+   "price": 540
+  },
+  "FC9": {
+   "name": "Fiber cement board 9mm 1.22x2.44",
+   "unit": "pc",
+   "price": 880
+  },
+  "PLY6": {
+   "name": "Marine plywood 1/4\" 1.22x2.44",
+   "unit": "pc",
+   "price": 650
+  },
+  "STUD": {
+   "name": "Metal stud 3.0m",
+   "unit": "pc",
+   "price": 190
+  },
+  "TRK": {
+   "name": "Metal track 3.0m",
+   "unit": "pc",
+   "price": 150
+  },
+  "ANC": {
+   "name": "Concrete anchor / nail",
+   "unit": "pc",
+   "price": 5
+  },
+  "INS": {
+   "name": "Insulation (glasswool)",
+   "unit": "m²",
+   "price": 180
+  },
+  "CC": {
+   "name": "Carrying channel 5.0m",
+   "unit": "pc",
+   "price": 210
+  },
+  "MF": {
+   "name": "Metal furring 5.0m",
+   "unit": "pc",
+   "price": 170
+  },
+  "WA": {
+   "name": "Wall angle 3.0m",
+   "unit": "pc",
+   "price": 85
+  },
+  "HANG": {
+   "name": "Hanger wire / rod",
+   "unit": "m",
+   "price": 20
+  },
+  "WCL": {
+   "name": "W-clip / connector",
+   "unit": "pc",
+   "price": 6
+  },
+  "MR": {
+   "name": "Main runner 3.66m",
+   "unit": "pc",
+   "price": 210
+  },
+  "CT4": {
+   "name": "Cross tee 1.22m",
+   "unit": "pc",
+   "price": 75
+  },
+  "CT2": {
+   "name": "Cross tee 0.61m",
+   "unit": "pc",
+   "price": 40
+  },
+  "ACT": {
+   "name": "Acoustic tile 600x600",
+   "unit": "pc",
+   "price": 90
+  },
+  "AWA": {
+   "name": "Acoustic wall angle 3.05m",
+   "unit": "pc",
+   "price": 80
+  },
+  "PVC": {
+   "name": "PVC ceiling panel",
+   "unit": "pc",
+   "price": 320
+  },
+  "PVCM": {
+   "name": "PVC molding 3.0m",
+   "unit": "pc",
+   "price": 120
+  },
+  "LUM": {
+   "name": "Lumber 2\"x2\" (good lumber)",
+   "unit": "bd.ft",
+   "price": 55
+  },
+  "NAIL": {
+   "name": "Common wire nails",
+   "unit": "kg",
+   "price": 90
+  },
+  "CSCR": {
+   "name": "Board screws",
+   "unit": "pc",
+   "price": 0.6
+  },
+  "RIV": {
+   "name": "Blind rivets",
+   "unit": "pc",
+   "price": 1.2
+  },
+  "JT": {
+   "name": "Joint tape",
+   "unit": "m",
+   "price": 3
+  },
+  "JC": {
+   "name": "Joint compound",
+   "unit": "kg",
+   "price": 70
+  },
+  "CUB": {
+   "name": "Toilet cubicle set",
+   "unit": "set",
+   "price": 25000
+  }
+ },
+ "labor": {
+  "L_RB": {
+   "div": "REBAR",
+   "name": "Labor – rebar cutting, bending & installation",
+   "unit": "kg",
+   "mode": "unit",
+   "rate": 12
+  },
+  "L_CONC": {
+   "div": "CONC",
+   "name": "Labor – concrete mixing & placing",
+   "unit": "m³",
+   "mode": "unit",
+   "rate": 1800
+  },
+  "L_FORM": {
+   "div": "FORM",
+   "name": "Labor – formwork fabrication & installation",
+   "unit": "m²",
+   "mode": "unit",
+   "rate": 280
+  },
+  "L_CHB": {
+   "div": "MAS",
+   "name": "Labor – CHB laying (incl. reinforcement)",
+   "unit": "m²",
+   "mode": "unit",
+   "rate": 280
+  },
+  "L_PLAS": {
+   "div": "MAS",
+   "name": "Labor – plastering",
+   "unit": "m²",
+   "mode": "unit",
+   "rate": 180
+  },
+  "L_PART": {
+   "div": "PART",
+   "name": "Labor – partition installation",
+   "unit": "m²",
+   "mode": "unit",
+   "rate": 320
+  },
+  "L_CUB": {
+   "div": "PART",
+   "name": "Labor – cubicle installation",
+   "unit": "set",
+   "mode": "unit",
+   "rate": 3500
+  },
+  "L_CEIL": {
+   "div": "CEIL",
+   "name": "Labor – ceiling installation",
+   "unit": "m²",
+   "mode": "unit",
+   "rate": 380
+  }
+ },
+ "factors": {
+  "rebar": {
+   "lapFactor": 40,
+   "tieHookD": 6,
+   "tieHookMin": 75,
+   "hook90D": 12,
+   "commercial": [
+    6,
+    7.5,
+    9,
+    10.5,
+    12
+   ],
+   "tieWirePerX": 0.3,
+   "tieWireMPerKg": 53,
+   "allowancePct": 0
+  },
+  "concrete": {
+   "AA": {
+    "cement": 12,
+    "sand": 0.5,
+    "gravel": 1
+   },
+   "A": {
+    "cement": 9,
+    "sand": 0.5,
+    "gravel": 1
+   },
+   "B": {
+    "cement": 7.5,
+    "sand": 0.5,
+    "gravel": 1
+   },
+   "C": {
+    "cement": 6,
+    "sand": 0.5,
+    "gravel": 1
+   }
+  },
+  "chb": {
+   "perSqm": 12.5,
+   "courseH": 0.2,
+   "mortar": {
+    "4": {
+     "A": 0.792,
+     "B": 0.522,
+     "C": 0.394,
+     "sand": 0.0435
+    },
+    "5": {
+     "A": 1.15,
+     "B": 0.77,
+     "C": 0.58,
+     "sand": 0.064
+    },
+    "6": {
+     "A": 1.526,
+     "B": 1.018,
+     "C": 0.763,
+     "sand": 0.0844
+    }
+   }
+  },
+  "plaster": {
+   "A": 18,
+   "B": 12,
+   "C": 9,
+   "D": 7.5,
+   "sandPerCum": 1
+  },
+  "boards": {
+   "GYP9": {
+    "w": 1.22,
+    "l": 2.44
+   },
+   "GYP12": {
+    "w": 1.22,
+    "l": 2.44
+   },
+   "MR12": {
+    "w": 1.22,
+    "l": 2.44
+   },
+   "FC45": {
+    "w": 1.22,
+    "l": 2.44
+   },
+   "FC6": {
+    "w": 1.22,
+    "l": 2.44
+   },
+   "FC9": {
+    "w": 1.22,
+    "l": 2.44
+   },
+   "PLY6": {
+    "w": 1.22,
+    "l": 2.44
+   }
+  },
+  "ceiling": {
+   "ccSpacing": 1.2,
+   "stockLen": 5,
+   "wallAngleLen": 3,
+   "hangerSpacing": 1.2,
+   "hangerLen": 0.6,
+   "screwsPerBoard": 30,
+   "tapePerSqm": 1.2,
+   "compoundPerSqm": 0.5,
+   "rivetsPerFurring": 2,
+   "acousticMainLen": 3.66,
+   "acousticMainSp": 1.22,
+   "acousticTile": 0.6,
+   "acousticWallAngle": 3.05,
+   "pvcWidth": 0.2,
+   "pvcLength": 5.95,
+   "pvcMoldingLen": 3,
+   "pvcScrewsPerSqm": 12,
+   "woodFrameSp": 0.6,
+   "bdftPerM": 1.094,
+   "nailsKgPerSqm": 0.1
+  },
+  "partition": {
+   "studLen": 3,
+   "trackLen": 3,
+   "screwsPerBoard": 30,
+   "tapePerSqm": 1.2,
+   "compoundPerSqm": 0.5,
+   "anchorSp": 0.6
+  },
+  "waste": {
+   "concrete": 5,
+   "chb": 5,
+   "board": 5,
+   "metal": 5
+  }
+ }
+}

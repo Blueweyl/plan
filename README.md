@@ -30,4 +30,4 @@ Work autosaves in the browser. Use **Save project file** (`.estimate.json`) to k
 - In the app, the **Self-test** link in the footer runs hand-calculated worked examples.
 - Headless run: `node tests/selftest.mjs [screenshotDir]`. This needs Playwright and Chromium.
 
-See `PLAN.md` for the full plan and formulas.
+See `PLAN.md` for the plan, `AUDIT.md` for the Phase 0 audit, `TEST_PLAN.md` for testing (`npm test`) and `MIGRATION_PLAN.md` for the v2 data migration.
